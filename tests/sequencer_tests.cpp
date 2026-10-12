@@ -10,20 +10,31 @@
 #include <cstdlib>
 #include <iostream>
 #include <new>
+#include <memory>
 
+// Keep replacement allocation functions opaque to the optimizer, so fixture
+// allocation cannot be elided and GCC does not mistake malloc-backed new/delete
+// for mismatched allocation APIs when inlining unique_ptr destruction.
+#if defined(_MSC_VER)
+#define AG_TEST_NOINLINE __declspec(noinline)
+#elif defined(__GNUC__) || defined(__clang__)
+#define AG_TEST_NOINLINE __attribute__((noinline))
+#else
+#define AG_TEST_NOINLINE
+#endif
 static bool watchAlloc = false;
 static int allocations = 0;
-void *operator new(std::size_t n) {
+AG_TEST_NOINLINE void *operator new(std::size_t n) {
     if (watchAlloc)
         ++allocations;
     if (auto *p = std::malloc(n))
         return p;
     throw std::bad_alloc();
 }
-void operator delete(void *p) noexcept {
+AG_TEST_NOINLINE void operator delete(void *p) noexcept {
     std::free(p);
 }
-void operator delete(void *p, std::size_t) noexcept {
+AG_TEST_NOINLINE void operator delete(void *p, std::size_t) noexcept {
     std::free(p);
 }
 struct Log {
@@ -32,7 +43,20 @@ struct Log {
     double times[16384]{};
     int voices[16384]{};
     float velocities[16384]{};
+    // Only [0, count) is read; avoid constructing a 256 KiB aggregate temporary.
+    void reset() noexcept { count = 0; now = 0; }
 };
+static void resetSequence(ag::SequenceData& data) {
+    // Reset in place: a SequenceData{} assignment can materialize a 176 KiB
+    // temporary on the stack in MSVC, even when the destination lives on the heap.
+    for (auto& pattern : data.patterns) {
+        pattern.length = 16;
+        for (auto& voice : pattern.steps)
+            voice.fill(ag::Step{});
+    }
+    data.chain.fill(0);
+    data.chainLength = 1;
+}
 static void hit(void *ctx, int v, float velocity) {
     auto &l = *static_cast<Log *>(ctx);
     assert(l.count < 16384);
@@ -49,16 +73,20 @@ static void run(ag::Sequencer &q, Log &log, double begin, double end, double inc
     }
 }
 int main() {
-    ag::SequenceData d;
+    // The Windows executable stack defaults to 1 MiB. Large fixtures and replay
+    // copies belong on the heap; this does not change audio-thread allocation tests.
+    auto dataStorage = std::make_unique<ag::SequenceData>();
+    auto logStorage = std::make_unique<Log>();
+    auto& d = *dataStorage;
+    auto& log = *logStorage;
     ag::Sequencer q;
-    Log log;
     for (int s = 0; s < 64; ++s)
         d.patterns[0].steps[0][s].on = true;
     q.setData(&d);
     for (double sr : {44100., 48000., 96000.})
         for (double bpm : {59., 120., 177.3}) {
             q.reset();
-            log = {};
+            log.reset();
             const double inc = bpm / (60 * sr);
             run(q, log, 0, 4, inc);
             assert(log.count == 16);
@@ -68,7 +96,7 @@ int main() {
     // DAW block boundaries must not alter event counts or timing. Recompute
     // absolute PPQ at the block head as hosts do, then advance inside each block.
     q.reset();
-    log = {};
+    log.reset();
     const double blockInc = 123.0 / (60 * 48000);
     const int totalSamples = static_cast<int>(std::ceil(4 / blockInc));
     int sample = 0, blockIndex = 0;
@@ -86,23 +114,23 @@ int main() {
     assert(log.count == 16);
     // Replacing an edit snapshot between blocks preserves the crossing interval.
     q.reset();
-    log = {};
+    log.reset();
     log.now = .249;
     q.process(log.now, .002, true, 0, false, 0, &log, hit);
-    auto edited = d;
-    q.setData(&edited);
+    auto edited = std::make_unique<ag::SequenceData>(d);
+    q.setData(edited.get());
     log.now = .251;
     q.process(log.now, .002, true, 0, false, 0, &log, hit);
     assert(log.count == 1);
     q.setData(&d);
     q.reset();
-    log = {};
+    log.reset();
     run(q, log, .1, 1, .001);
     assert(log.count == 3);
     assert(std::abs(log.times[0] - .25) < 1e-8);
     // Exact loop restart must retrigger zero, never replay the skipped interval.
     q.reset();
-    log = {};
+    log.reset();
     run(q, log, 0, 1, .001);
     run(q, log, 0, 1, .001);
     assert(log.count == 8);
@@ -112,7 +140,7 @@ int main() {
     assert(q.currentStep() == -1);
     // Swing shifts odd sixteenths by 50%, without moving the even steps.
     q.reset();
-    log = {};
+    log.reset();
     run(q, log, 0, 1, .001, .5f);
     assert(log.count == 4);
     assert(std::abs(log.times[1] - .375) < 1e-8);
@@ -120,12 +148,12 @@ int main() {
     // Four ratchets distribute across the actual swung duration of the step.
     d.patterns[0].steps[0][0].ratchets = 4;
     q.reset();
-    log = {};
+    log.reset();
     run(q, log, 0, .375, .0001, .5f);
     assert(log.count == 4);
     for (int i = 0; i < 4; ++i)
         assert(std::abs(log.times[i] - i * .09375) < .000101);
-    d = {};
+    resetSequence(d);
     d.chainLength = 2;
     d.chain[0] = 0;
     d.chain[1] = 1;
@@ -135,7 +163,7 @@ int main() {
         for (int s = 0; s < d.patterns[p].length; ++s)
             d.patterns[p].steps[p][s].on = true;
     q.reset();
-    log = {};
+    log.reset();
     run(q, log, 0, 4, .001, .5f, true);
     assert(log.count == 16);
     for (int i = 0; i < 16; ++i)
@@ -144,28 +172,28 @@ int main() {
     assert(std::abs(log.times[8] - 2) < 1e-8);
     // Probability selection is deterministic for transport replays and shared
     // across all ratchets of one hit. 0 and 1 are exact, .5 varies across loops.
-    d = {};
+    resetSequence(d);
     d.patterns[0].length = 1;
     d.patterns[0].steps[0][0] = {true, .7f, .5f, 4};
     d.patterns[0].steps[1][0] = {true, .7f, 0.f, 1};
     q.reset();
-    log = {};
+    log.reset();
     run(q, log, 0, 20, .001);
-    const Log first = log;
+    const auto first = std::make_unique<Log>(log);
     assert(log.count > 80 && log.count < 240);
     assert(log.count % 4 == 0);
     q.reset();
-    log = {};
+    log.reset();
     run(q, log, 0, 20, .001);
-    assert(log.count == first.count);
+    assert(log.count == first->count);
     for (int i = 0; i < log.count; ++i) {
-        assert(log.times[i] == first.times[i]);
+        assert(log.times[i] == first->times[i]);
         assert(log.voices[i] == 0);
     }
     allocations = 0;
     watchAlloc = true;
     q.reset();
-    log = {};
+    log.reset();
     run(q, log, 0, 1, .001);
     watchAlloc = false;
     assert(allocations == 0);
