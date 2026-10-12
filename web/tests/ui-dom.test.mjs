@@ -66,10 +66,10 @@ test('randomization is scoped to one pattern or synthesis lane and is undoable',
  for(let p=0;p<16;p++)if(p!==5)assert.deepEqual(current.bank.patterns[p],initial.bank.patterns[p]);
  for(const row of current.bank.patterns[5].steps)assert.ok(row.slice(32).every(s=>!s.on));
  f.click('undo-random');assert.deepEqual(f.save(),initial);assert.equal(f.$('undo-random').disabled,true);
- f.click(f.document.querySelectorAll('.voice-random')[1]);current=f.save();assert.notDeepEqual(current.voices[1],initial.voices[1]);assert.deepEqual(current.bank,initial.bank);
+ f.click(f.document.querySelectorAll('.voice-random')[1]);current=f.save();assert.deepEqual(current.voices,initial.voices);assert.notDeepEqual(current.bank.patterns[5].steps[1],initial.bank.patterns[5].steps[1]);for(let v=0;v<11;v++)if(v!==1)assert.deepEqual(current.bank.patterns[5].steps[v],initial.bank.patterns[5].steps[v]);for(let p=0;p<16;p++)if(p!==5)assert.deepEqual(current.bank.patterns[p],initial.bank.patterns[p]);
  for(const key of ['model','level','pan','mute','solo','reverse','sampleStart','sampleEnd'])assert.equal(current.voices[1][key],initial.voices[1][key]);
  for(let v=0;v<11;v++)if(v!==1)assert.deepEqual(current.voices[v],initial.voices[v]);
  f.click('undo-random');assert.deepEqual(f.save(),initial);
- f.change('model',2);assert.equal(f.$('randomize-sound').disabled,true);assert.equal(f.document.querySelectorAll('.voice-random')[1].disabled,true);
+ f.change('model',2);assert.equal(f.$('randomize-sound').disabled,true);assert.equal(f.document.querySelectorAll('.voice-random')[1].disabled,false);f.click(f.document.querySelectorAll('.voice-random')[1]);assert.equal(f.save().voices[1].model,2);
  f.change('model',0);assert.equal(f.$('randomize-sound').disabled,false);f.click('randomize-sound');assert.ok(f.$('status').textContent.includes('SNARE DRUM'));
 });
