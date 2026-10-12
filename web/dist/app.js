@@ -136,6 +136,12 @@ bind('copy',()=>{clipboard=clone(currentPattern());$('paste').disabled=false;sta
 bind('paste',()=>{if(!clipboard)return;state.bank.patterns[state.selectedPattern]=clone(clipboard);sync();renderAll();status('Pattern pasted.');});
 bind('clear',()=>{if(!confirm(`Clear all voices in pattern ${state.selectedPattern+1}?`))return;for(const row of currentPattern().steps)for(const hit of row)hit.on=false;sync();renderAll();status('Pattern cleared.');});
 bind('randomize-pattern',()=>{const index=state.selectedPattern,previous=clone(currentPattern());rememberRandom(()=>{state.bank.patterns[index]=previous;state.selectedPattern=index;});state.bank.patterns[index]=randomPattern(previous.length);sync();renderAll();status(`New rhythm across all voices in pattern ${index+1}.`);});
+bind('randomize-all-drums',()=>{
+    const previous=clone(state.voices);
+    rememberRandom(()=>{state.voices.forEach((params,index)=>{for(const key of ['model','tune','decay','tone','drive'])params[key]=previous[index][key];});});
+    state.voices=state.voices.map((params,index)=>randomSound({...params,model:Math.random()<.5?0:1},index));
+    sync();renderAll();status('New sounds for all drums: a random mix of 909 and 808. Undo Random restores the previous kit sounds.');
+});
 bind('randomize-sound',()=>randomizeSound(voice));
 bind('undo-random',()=>{if(!randomUndo)return;randomUndo();randomUndo=null;$('undo-random').disabled=true;sync();renderAll();status('Last randomization restored.');});
 bind('randomize',()=>randomizeLane(voice));
