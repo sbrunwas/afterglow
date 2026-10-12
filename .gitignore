@@ -1,0 +1,5 @@
+build*/
+*.zip
+*.wav
+.DS_Store
+.vs/
