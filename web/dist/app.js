@@ -17,6 +17,7 @@ const clone = value => typeof structuredClone === 'function' ? structuredClone(v
 const controls = new Map();
 let randomUndo=null;
 const voiceRandomButtons=[];
+const voiceMuteButtons=[], voiceSoloButtons=[];
 const stepButtons = [], voiceButtons = [], patternButtons = [], pageButtons = [], numberLabels = [];
 function status(message, error = false) { $('status').textContent = message; $('status').classList.toggle('error',error); }
 function persist() {
@@ -68,8 +69,13 @@ function createControl(parent,key,label,min,max,increment,decimals,get,set) {
     wrapper.append(title,knob,range,number);parent.append(wrapper);controls.set(key,refresh);refresh();
 }
 function renderGrid(){
-    const pattern=currentPattern();
+    const pattern=currentPattern(), anySolo=state.voices.some(params=>params.solo);
     for(let v=0;v<11;v++){
+        for(const [key,buttons] of [['mute',voiceMuteButtons],['solo',voiceSoloButtons]]){
+            buttons[v].setAttribute('aria-pressed',String(state.voices[v][key]));
+            buttons[v].setAttribute('aria-label',`${key==='mute'?'Mute':'Solo'} ${voiceName(v)}`);
+        }
+        voiceButtons[v].parentElement.classList.toggle('silenced',state.voices[v].mute||(anySolo&&!state.voices[v].solo));
         voiceButtons[v].lastChild.textContent=voiceName(v);
         voiceButtons[v].setAttribute('aria-label',`Select ${voiceName(v)}`);
         voiceRandomButtons[v].setAttribute('aria-label',`Randomize ${voiceName(v)} pattern`);
@@ -114,7 +120,14 @@ function makeGrid(){
     for(let v=0;v<11;v++){
         const label=document.createElement('button');label.className='voice-select';const number=document.createElement('span');number.textContent=String(v+1).padStart(2,'0');label.append(number,document.createTextNode(voiceName(v)));
         label.addEventListener('click',()=>selectVoice(v));label.addEventListener('contextmenu',guarded(async event=>{event.preventDefault();selectVoice(v);await ensureAudio();audio.audition(v,1);}));
-        label.title='Select voice. Right-click to audition.';voiceButtons.push(label);const row=document.createElement('div');row.className='voice-row';const random=document.createElement('button');random.className='voice-random';random.textContent='RND';random.setAttribute('aria-label',`Randomize ${voiceName(v)} pattern`);random.title='Randomize only this instrument’s steps in the current pattern';random.addEventListener('click',()=>randomizeLane(v));voiceRandomButtons.push(random);row.append(label,random);$('sequencer').append(row);stepButtons[v]=[];
+        label.title='Select voice. Right-click to audition.';voiceButtons.push(label);const row=document.createElement('div');row.className='voice-row';const random=document.createElement('button');random.className='voice-random';random.textContent='RND';random.setAttribute('aria-label',`Randomize ${voiceName(v)} pattern`);random.title='Randomize only this instrument’s steps in the current pattern';random.addEventListener('click',()=>randomizeLane(v));voiceRandomButtons.push(random);row.append(label);
+        for(const [key,letter,buttons] of [['mute','M',voiceMuteButtons],['solo','S',voiceSoloButtons]]){
+            const toggle=document.createElement('button');toggle.type='button';toggle.className=`voice-toggle voice-${key}`;toggle.textContent=letter;
+            toggle.title=key==='mute'?'Mute this lane':'Solo this lane (multiple solos allowed)';
+            toggle.addEventListener('click',()=>{state.voices[v][key]=!state.voices[v][key];sync();renderGrid();renderVoice();});
+            buttons.push(toggle);row.append(toggle);
+        }
+        row.append(random);$('sequencer').append(row);stepButtons[v]=[];
         for(let s=0;s<16;s++){
             const button=document.createElement('button');button.className=`step${s%4===0?' beat':''}`;
             const led=document.createElement('i');led.className='key-led';const repeats=document.createElement('span');repeats.className='repeats';const chance=document.createElement('span');chance.className='chance';button.append(led,repeats,chance);
@@ -138,7 +151,7 @@ bind('play',togglePlayback);bind('stop',()=>{if(initialized)audio.stop();playing
 bind('audition',async()=>{await ensureAudio();audio.audition(voice,1);});
 $('length').addEventListener('change',()=>{currentPattern().length=Math.max(1,Math.min(64,Math.round(Number($('length').value)||16)));sync();renderGrid();});
 $('model').addEventListener('change',()=>{state.voices[voice].model=Number($('model').value);sync();renderVoice();renderGrid();if(state.voices[voice].model===2&&!samples[voice])status('Sample mode selected. Load a sample to hear this voice.');});
-for(const key of ['mute','solo','reverse'])bind(key,()=>{state.voices[voice][key]=!state.voices[voice][key];sync();renderVoice();});
+for(const key of ['mute','solo','reverse'])bind(key,()=>{state.voices[voice][key]=!state.voices[voice][key];sync();renderVoice();renderGrid();});
 bind('copy',()=>{clipboard=clone(currentPattern());$('paste').disabled=false;status(`Pattern ${state.selectedPattern+1} copied. Select a destination and PASTE.`);});
 bind('paste',()=>{if(!clipboard)return;state.bank.patterns[state.selectedPattern]=clone(clipboard);sync();renderAll();status('Pattern pasted.');});
 bind('clear',()=>{if(!confirm(`Clear all voices in pattern ${state.selectedPattern+1}?`))return;for(const row of currentPattern().steps)for(const hit of row)hit.on=false;sync();renderAll();status('Pattern cleared.');});
