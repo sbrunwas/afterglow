@@ -57,3 +57,19 @@ test('DOM sample file loading succeeds with suspended audio before PLAY',async()
  const f=await fixture();Object.defineProperty(f.$('sample-file'),'files',{value:[{size:16,name:'before-play.wav',arrayBuffer:async()=>new ArrayBuffer(16)}]});f.event(f.$('sample-file'),'change');await new Promise(resolve=>setImmediate(resolve));
  assert.equal(contexts,1);assert.equal(f.$('sample-name').textContent,'before-play.wav');assert.equal(f.$('model').value,'2');assert.equal(f.save().voices[0].model,2);assert.ok(f.$('status').textContent.includes('loaded into'));
 });
+
+
+test('randomization is scoped to one pattern or synthesis lane and is undoable',async()=>{
+ const initial=createInitialState();initial.selectedPattern=5;initial.bank.patterns[5].length=32;initial.voices[1].model=1;initial.voices[1].level=.33;initial.voices[1].pan=-.4;initial.voices[1].mute=true;
+ const f=await fixture(initial);assert.equal(f.document.querySelectorAll('.voice-random').length,11);
+ f.click('randomize-pattern');let current=f.save();assert.equal(current.bank.patterns[5].length,32);assert.notDeepEqual(current.bank.patterns[5],initial.bank.patterns[5]);assert.deepEqual(current.voices,initial.voices);
+ for(let p=0;p<16;p++)if(p!==5)assert.deepEqual(current.bank.patterns[p],initial.bank.patterns[p]);
+ for(const row of current.bank.patterns[5].steps)assert.ok(row.slice(32).every(s=>!s.on));
+ f.click('undo-random');assert.deepEqual(f.save(),initial);assert.equal(f.$('undo-random').disabled,true);
+ f.click(f.document.querySelectorAll('.voice-random')[1]);current=f.save();assert.notDeepEqual(current.voices[1],initial.voices[1]);assert.deepEqual(current.bank,initial.bank);
+ for(const key of ['model','level','pan','mute','solo','reverse','sampleStart','sampleEnd'])assert.equal(current.voices[1][key],initial.voices[1][key]);
+ for(let v=0;v<11;v++)if(v!==1)assert.deepEqual(current.voices[v],initial.voices[v]);
+ f.click('undo-random');assert.deepEqual(f.save(),initial);
+ f.change('model',2);assert.equal(f.$('randomize-sound').disabled,true);assert.equal(f.document.querySelectorAll('.voice-random')[1].disabled,true);
+ f.change('model',0);assert.equal(f.$('randomize-sound').disabled,false);f.click('randomize-sound');assert.ok(f.$('status').textContent.includes('SNARE DRUM'));
+});

@@ -63,3 +63,5 @@
 :root[data-skin="studio"]{--accent:#913b55;--accent-low:#63263d}
 :root[data-skin="studio"] #status.error{color:#97243d}
 @media(max-width:480px){h1{font-size:30px}.header-right{max-width:48%}.skin-control{flex-wrap:wrap;justify-content:flex-end}.skin-control select{max-width:150px;width:100%}}
+
+@media(max-width:780px){:root:not([data-skin="classic"]) .voice-row{background:var(--surface)}}

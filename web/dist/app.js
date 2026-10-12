@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {AfterglowAudio} from './audio.js';
 import {initSkins} from './skins.js';
+import {randomPattern,randomSound} from './randomize.js';
 initSkins();
 import {createInitialState, encodePreset, decodePreset, MIDI_NOTES} from './state.js';
 
@@ -13,6 +14,8 @@ let voice = 0, step = 0, page = 0, clipboard = null, initialized = false, initia
 let position = {step:-1,pattern:0,playing:false,peak:0};
 const clone = value => typeof structuredClone === 'function' ? structuredClone(value) : JSON.parse(JSON.stringify(value));
 const controls = new Map();
+let randomUndo=null;
+const voiceRandomButtons=[];
 const stepButtons = [], voiceButtons = [], patternButtons = [], pageButtons = [], numberLabels = [];
 function status(message, error = false) { $('status').textContent = message; $('status').classList.toggle('error',error); }
 function persist() {
@@ -41,6 +44,8 @@ async function ensureAudio() {
 }
 function guarded(fn) { return async event => { try { await fn(event); } catch(error) { status(error.message || String(error),true); } }; }
 function bind(id,fn) { $(id).addEventListener('click',guarded(fn)); }
+function rememberRandom(undo){randomUndo=undo;$('undo-random').disabled=false;}
+function randomizeSound(index){if(state.voices[index].model===2){status('Choose 909 or 808 to randomize synthesis.');return;}const previous=clone(state.voices[index]);rememberRandom(()=>{for(const key of ['tune','decay','tone','drive'])state.voices[index][key]=previous[key];selectVoice(index);});state.voices[index]=randomSound(state.voices[index],index);selectVoice(index);sync();status(`New synthesis settings for ${names[index]}.`);}
 function currentPattern(){ return state.bank.patterns[state.selectedPattern]; }
 function selectedStep(){ return currentPattern().steps[voice][step]; }
 function createControl(parent,key,label,min,max,increment,decimals,get,set) {
@@ -63,6 +68,7 @@ function createControl(parent,key,label,min,max,increment,decimals,get,set) {
 function renderGrid(){
     const pattern=currentPattern();
     for(let v=0;v<11;v++){
+        voiceRandomButtons[v].disabled=state.voices[v].model===2;
         voiceButtons[v].classList.toggle('active',v===voice);voiceButtons[v].setAttribute('aria-pressed',String(v===voice));
         for(let s=0;s<16;s++){
             const absolute=page*16+s, data=pattern.steps[v][absolute], button=stepButtons[v][s];
@@ -81,6 +87,7 @@ function renderGrid(){
     $('step-label').textContent=`STEP ${String(step+1).padStart(2,'0')}`;
 }
 function renderVoice(){
+    $('randomize-sound').disabled=state.voices[voice].model===2;voiceRandomButtons[voice].disabled=state.voices[voice].model===2;
     $('voice-name').textContent=names[voice];$('voice-number').textContent=String(voice+1).padStart(2,'0');$('model').value=state.voices[voice].model;
     for(const key of ['mute','solo','reverse'])$(key).setAttribute('aria-pressed',String(state.voices[voice][key]));
     const sample=samples[voice];$('sample-name').textContent=sample?sample.name:'Drop an audio sample here, or click to browse';
@@ -96,7 +103,7 @@ function makeGrid(){
     for(let v=0;v<11;v++){
         const label=document.createElement('button');label.className='voice-select';const number=document.createElement('span');number.textContent=String(v+1).padStart(2,'0');label.append(number,document.createTextNode(names[v]));
         label.addEventListener('click',()=>selectVoice(v));label.addEventListener('contextmenu',guarded(async event=>{event.preventDefault();selectVoice(v);await ensureAudio();audio.audition(v,1);}));
-        label.title='Select voice. Right-click to audition.';voiceButtons.push(label);$('sequencer').append(label);stepButtons[v]=[];
+        label.title='Select voice. Right-click to audition.';voiceButtons.push(label);const row=document.createElement('div');row.className='voice-row';const random=document.createElement('button');random.className='voice-random';random.textContent='RND';random.setAttribute('aria-label',`Randomize ${names[v]} synthesis`);random.title='Randomize tune, decay, tone and drive for this voice';random.addEventListener('click',()=>randomizeSound(v));voiceRandomButtons.push(random);row.append(label,random);$('sequencer').append(row);stepButtons[v]=[];
         for(let s=0;s<16;s++){
             const button=document.createElement('button');button.className=`step${s%4===0?' beat':''}`;
             const led=document.createElement('i');led.className='key-led';const repeats=document.createElement('span');repeats.className='repeats';const chance=document.createElement('span');chance.className='chance';button.append(led,repeats,chance);
@@ -111,7 +118,7 @@ function download(blob,name){const url=URL.createObjectURL(blob),anchor=document
 async function togglePlayback(){await ensureAudio();if(playing){audio.pause();playing=false;}else{audio.setState(state);await audio.play();playing=true;}renderTransport();}
 function renderTransport(){ $('play').textContent=playing?'Ⅱ PAUSE':'▶ PLAY';$('play').setAttribute('aria-label',playing?'Pause':'Play');$('run-led').classList.toggle('on',playing); }
 async function importSample(file,index=voice){if(!file)return;status(`Loading ${file.name}...`);const descriptor=await audio.loadSample(index,file);samples[index]=descriptor;state.voices[index].model=2;audio.setSamples(samples);sync();renderVoice();status(`${file.name} loaded into ${names[index]}.`);}
-try{const saved=localStorage.getItem(storageKey);if(saved){const result=decodePreset(saved);state=result.state;samples=result.samples;status('Restored your last session on this device.');}}catch{status('Starting a new session. Previous local data was unavailable.',true);}
+try{const saved=localStorage.getItem(storageKey);if(saved){const result=decodePreset(saved);randomUndo=null;$('undo-random').disabled=true;state=result.state;samples=result.samples;status('Restored your last session on this device.');}}catch{status('Starting a new session. Previous local data was unavailable.',true);}
 makeGrid();
 for(const [key,label,min,max,increment,decimals] of [['tempo','TEMPO',40,240,.1,1],['swing','SWING',0,.66,.01,2],['master','MASTER',0,1,.01,2]])createControl($('global-controls'),key,label,min,max,increment,decimals,()=>state[key],value=>state[key]=value);
 for(const [key,label,min,max,increment,decimals] of [['tune','TUNE / ST',-24,24,.1,1],['decay','DECAY',.03,1,.01,2],['tone','TONE',0,1,.01,2],['level','LEVEL',0,1.5,.01,2],['pan','PAN',-1,1,.01,2],['drive','DRIVE',0,1,.01,2],['sampleStart','START',0,.99,.001,3],['sampleEnd','END',.01,1,.001,3]])createControl($('voice-controls'),key,label,min,max,increment,decimals,()=>state.voices[voice][key],value=>{const selected=state.voices[voice];if(key==='sampleStart')value=Math.min(value,selected.sampleEnd-.001);if(key==='sampleEnd')value=Math.max(value,selected.sampleStart+.001);selected[key]=value;});
@@ -119,21 +126,24 @@ for(const [key,label,min,max,increment,decimals] of [['velocity','VELOCITY',.01,
 bind('play',togglePlayback);bind('stop',()=>{if(initialized)audio.stop();playing=false;position={...position,step:-1,playing:false};renderTransport();renderGrid();$('position').textContent='STOPPED';});
 bind('audition',async()=>{await ensureAudio();audio.audition(voice,1);});
 $('length').addEventListener('change',()=>{currentPattern().length=Math.max(1,Math.min(64,Math.round(Number($('length').value)||16)));sync();renderGrid();});
-$('model').addEventListener('change',()=>{state.voices[voice].model=Number($('model').value);sync();if(state.voices[voice].model===2&&!samples[voice])status('Sample mode selected. Load a sample to hear this voice.');});
+$('model').addEventListener('change',()=>{state.voices[voice].model=Number($('model').value);sync();renderVoice();renderGrid();if(state.voices[voice].model===2&&!samples[voice])status('Sample mode selected. Load a sample to hear this voice.');});
 for(const key of ['mute','solo','reverse'])bind(key,()=>{state.voices[voice][key]=!state.voices[voice][key];sync();renderVoice();});
 bind('copy',()=>{clipboard=clone(currentPattern());$('paste').disabled=false;status(`Pattern ${state.selectedPattern+1} copied. Select a destination and PASTE.`);});
 bind('paste',()=>{if(!clipboard)return;state.bank.patterns[state.selectedPattern]=clone(clipboard);sync();renderAll();status('Pattern pasted.');});
 bind('clear',()=>{if(!confirm(`Clear all voices in pattern ${state.selectedPattern+1}?`))return;for(const row of currentPattern().steps)for(const hit of row)hit.on=false;sync();renderAll();status('Pattern cleared.');});
-bind('randomize',()=>{const p=currentPattern();for(let s=0;s<64;s++){const hit=p.steps[voice][s];let likelihood=voice===0?(s%4===0?.92:.10):voice===1?(s%8===4?.95:.06):voice===7?(s%2===0?.8:.25):voice===8?(s%4===2?.6:.03):.18;hit.on=s<p.length&&Math.random()<likelihood;hit.velocity=.55+Math.random()*.4;hit.probability=1;hit.ratchets=1;}sync();renderAll();status(`New variation for ${names[voice]}.`);});
+bind('randomize-pattern',()=>{const index=state.selectedPattern,previous=clone(currentPattern());rememberRandom(()=>{state.bank.patterns[index]=previous;state.selectedPattern=index;});state.bank.patterns[index]=randomPattern(previous.length);sync();renderAll();status(`New rhythm across all voices in pattern ${index+1}.`);});
+bind('randomize-sound',()=>randomizeSound(voice));
+bind('undo-random',()=>{if(!randomUndo)return;randomUndo();randomUndo=null;$('undo-random').disabled=true;sync();renderAll();status('Last randomization restored.');});
+bind('randomize',()=>{const index=state.selectedPattern,selected=voice,previous=clone(currentPattern().steps[voice]);rememberRandom(()=>{state.bank.patterns[index].steps[selected]=previous;state.selectedPattern=index;selectVoice(selected);});const p=currentPattern();for(let s=0;s<64;s++){const hit=p.steps[voice][s];let likelihood=voice===0?(s%4===0?.92:.10):voice===1?(s%8===4?.95:.06):voice===7?(s%2===0?.8:.25):voice===8?(s%4===2?.6:.03):.18;hit.on=s<p.length&&Math.random()<likelihood;hit.velocity=.55+Math.random()*.4;hit.probability=1;hit.ratchets=1;}sync();renderAll();status(`New variation for ${names[voice]}.`);});
 bind('chain-mode',()=>{state.chainMode=!state.chainMode;sync();$('chain-mode').setAttribute('aria-pressed',String(state.chainMode));});
 bind('chain-apply',()=>{const text=$('chain').value.trim(),tokens=text.split(/[\s,]+/);if(!text||tokens.length>64||tokens.some(t=>!/^\d+$/.test(t)||Number(t)<1||Number(t)>16)){status('Enter 1–64 pattern numbers from 1 to 16, separated by commas.',true);return;}state.bank.chain=tokens.map(t=>Number(t)-1);state.bank.chainLength=tokens.length;sync();status('Song chain applied. Enable SONG CHAIN to play it.');});
 bind('save',()=>{const encoded=encodePreset(state,samples);download(new Blob([typeof encoded==='string'?encoded:JSON.stringify(encoded)],{type:'application/json'}),'Afterglow-kit.afterglow-web.json');status('Portable kit downloaded, including your samples.');});
-bind('load',()=>$('preset-file').click());$('preset-file').addEventListener('change',guarded(async()=>{const file=$('preset-file').files[0];if(!file)return;if(file.size>90*1024*1024)throw new Error('Preset is too large (maximum 90 MB).');const result=decodePreset(await file.text());if(initialized)audio.stop();playing=false;position={step:-1,pattern:0,playing:false,peak:0};state=result.state;samples=result.samples;page=0;step=0;if(initialized)audio.setSamples(samples);sync();renderAll();renderTransport();status(`Loaded ${file.name}.`);$('preset-file').value='';}));
+bind('load',()=>$('preset-file').click());$('preset-file').addEventListener('change',guarded(async()=>{const file=$('preset-file').files[0];if(!file)return;if(file.size>90*1024*1024)throw new Error('Preset is too large (maximum 90 MB).');const result=decodePreset(await file.text());if(initialized)audio.stop();playing=false;position={step:-1,pattern:0,playing:false,peak:0};randomUndo=null;$('undo-random').disabled=true;state=result.state;samples=result.samples;page=0;step=0;if(initialized)audio.setSamples(samples);sync();renderAll();renderTransport();status(`Loaded ${file.name}.`);$('preset-file').value='';}));
 bind('sample-load',()=>$('sample-file').click());$('sample-file').addEventListener('change',guarded(async()=>{await importSample($('sample-file').files[0]);$('sample-file').value='';}));
 bind('sample-clear',()=>{samples[voice]=null;if(initialized)audio.setSamples(samples);if(state.voices[voice].model===2)state.voices[voice].model=0;sync();renderVoice();status('Sample removed.');});
 $('sample-zone').addEventListener('click',()=>$('sample-file').click());$('sample-zone').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();$('sample-file').click();}});
 for(const event of ['dragenter','dragover'])$('sample-zone').addEventListener(event,e=>{e.preventDefault();$('sample-zone').classList.add('dragover');});$('sample-zone').addEventListener('dragleave',()=>$('sample-zone').classList.remove('dragover'));$('sample-zone').addEventListener('drop',guarded(async event=>{event.preventDefault();$('sample-zone').classList.remove('dragover');await importSample(event.dataTransfer.files[0]);}));
-bind('factory',()=>{if(!confirm('Replace all 16 patterns with the factory bank? Your voice settings and samples will remain.'))return;state.bank=clone(createInitialState().bank);sync();renderAll();status('Factory patterns restored.');});
+bind('factory',()=>{if(!confirm('Replace all 16 patterns with the factory bank? Your voice settings and samples will remain.'))return;randomUndo=null;$('undo-random').disabled=true;state.bank=clone(createInitialState().bank);sync();renderAll();status('Factory patterns restored.');});
 bind('midi-export',()=>{download(audio.exportMidi(state),`Afterglow-pattern-${state.selectedPattern+1}.mid`);status('MIDI pattern downloaded.');});
 bind('wav-export',async()=>{const button=$('wav-export');button.disabled=true;status('Rendering WAV with the Afterglow engine...');try{const blob=await audio.renderWav(clone(state),samples,{bars:Number($('render-bars').value)});download(blob,'Afterglow-render.wav');status('WAV render downloaded.');}finally{button.disabled=false;}});
 let midiAccess;
