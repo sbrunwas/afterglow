@@ -17,13 +17,15 @@ The Linux VST3 passed pluginval 1.0.4 at strictness level 5 with GUI tests skipp
 
 The real JUCE editor was rendered headlessly to a PNG at its default 1180 × 800 size and visually inspected. The initial snapshot exposed elided two-digit pattern labels, excess decimal places, and malformed separators; those defects were corrected and a fresh snapshot was checked. A software-rendered snapshot does not establish Windows GUI input, scaling, or accessibility compatibility.
 
-No Windows VST3 or standalone binary was produced locally. The MinGW attempt failed at the framework toolchain check; see below. The configured Windows GitHub Actions workflow has not been run as part of these local checks.
+Hosted GitHub Actions successfully compiled the Windows x64 VST3 and standalone executable using MSVC 19.51 on Windows Server 2025. In the first run, DSP and processor tests passed, but the sequencer test executable exhausted the default Windows stack: its two sequence banks and two event logs occupied 885,416 bytes before compiler temporaries. The test fixtures and replay copies were moved to heap storage, with in-place resets to avoid large temporary aggregates. All behavioral and zero-allocation assertions remain; the corrected test passed locally with a 128 KiB stack. The audio-thread sequencer was unchanged.
+
+The Windows release pipeline gates publication on a successful build, all three CTest suites, and pluginval 1.0.4 strictness 5 with GUI tests skipped. Current and historical results are available in [GitHub Actions](https://github.com/sbrunwas/afterglow/actions); a Windows release ZIP is attached only after those gates succeed. No Windows binary was produced by the local MinGW attempt.
 
 The processor suite covers sample-offset MIDI triggering, panic, host start/stop, auxiliary bus routing, different host block sizes, concurrent pattern publication, full state recall, embedded sample portability after removal of the source WAV, and rejection of malformed state/preset data. Its screenshot mode renders the actual JUCE editor for visual inspection.
 
 ## Unverified environments and behavior
 
-- A MinGW cross-compilation attempt was rejected by JUCE 8.0.6's explicit unsupported-toolchain check. A generic Windows executable compiler probe is not a Windows VST3 build. The supported Visual Studio/MSVC Windows build is configured in GitHub Actions; a successful workflow result must be verified separately.
+- A MinGW cross-compilation attempt was rejected by JUCE 8.0.6's explicit unsupported-toolchain check. The Windows builds use the supported MSVC toolchain on GitHub's hosted runner.
 - No actual Ableton Live session on Windows has been exercised in this environment.
 - Native Windows plugin scan, device audio operation, automation recording, host project reopen, and multi-output routing require confirmation on the user's machine.
 - No original TR-808/TR-909 hardware, reference capture corpus, or controlled listening panel was available. Circuit-identical emulation and perceptual indistinguishability are not claimed.

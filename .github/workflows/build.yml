@@ -32,6 +32,8 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist
+          & build/Release/ag_render_demo.exe dist/Afterglow-909-808-Demo.wav dist/Afterglow-Demo-Stats.csv
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Copy-Item -Recurse build/Afterglow_artefacts/Release/VST3/Afterglow.vst3 dist/
           Copy-Item build/Afterglow_artefacts/Release/Standalone/Afterglow.exe dist/
           Copy-Item README.md,LICENSE,THIRD_PARTY_NOTICES.md dist/
@@ -47,17 +49,18 @@ jobs:
         with:
           name: Afterglow-Windows-x64
           path: Afterglow-Windows-x64.zip
-      - name: Publish tagged release
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v') || (github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release]'))
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v0.1.0' }}
+          RELEASE_COMMIT: ${{ github.sha }}
         run: |
           gh release view "$env:RELEASE_TAG" --json tagName *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload "$env:RELEASE_TAG" Afterglow-Windows-x64.zip --clobber
+            gh release upload "$env:RELEASE_TAG" Afterglow-Windows-x64.zip dist/Afterglow-909-808-Demo.wav docs/images/afterglow-editor.png --clobber
           } else {
-            gh release create "$env:RELEASE_TAG" Afterglow-Windows-x64.zip --generate-notes --prerelease
+            gh release create "$env:RELEASE_TAG" Afterglow-Windows-x64.zip dist/Afterglow-909-808-Demo.wav docs/images/afterglow-editor.png --target "$env:RELEASE_COMMIT" --title "Afterglow $env:RELEASE_TAG — Windows development preview" --notes-file docs/RELEASE.md --prerelease
           }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
   linux-tests:

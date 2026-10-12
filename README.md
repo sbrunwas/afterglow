@@ -4,6 +4,10 @@ A ReBirth-inspired drum-machine **VST3 instrument for Windows x64**, built for p
 
 **Version 0.1.0 — initial development build.** Read `docs/VALIDATION.md` for exactly what was built and tested. Hardware matching and operation inside Ableton Live must not be assumed from unit tests.
 
+Download the Windows build from [GitHub Releases](https://github.com/sbrunwas/afterglow/releases). Choose **Afterglow-Windows-x64.zip**; source-only archives do not contain the plugin binary.
+
+![Afterglow editor](docs/images/afterglow-editor.png)
+
 ## Install in Ableton Live on Windows
 
 1. Extract the Windows ZIP. Copy the **entire `Afterglow.vst3` folder** into `C:\Program Files\Common Files\VST3\` (administrator permission may be needed). Do not extract or copy only its inner binary.
