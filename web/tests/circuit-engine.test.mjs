@@ -19,9 +19,10 @@ before(()=>{
 });
 after(()=>{if(temporary)rmSync(temporary,{recursive:true,force:true});});
 for(const [suite,description] of [
-  ['coverage','all 22 model/voice combinations produce finite sound at 44.1/48/96 kHz; reset clears tails'],
+  ['coverage','all 44 model/voice combinations produce finite sound at 44.1/48/96 kHz; reset clears tails'],
   ['extremes','extreme tune/decay/tone/drive combinations and rapid retriggers remain bounded and recover from invalid input'],
   ['choke','closed hat chokes synth and sample open hats, and a new open-hat hit reopens'],
+  ['mixed','mixed-model kits preserve playing tails on selection and survive repeated model swaps'],
   ['noise','909 noise has stable fixed-band power across sample rates and deterministic reset'],
   ['controls','tune, decay and tone affect every voice at its next hit'],
   ['free-running','808 shared metal generator advances between triggers'],

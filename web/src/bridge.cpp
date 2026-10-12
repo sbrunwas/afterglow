@@ -29,7 +29,7 @@ extern "C" {
 Engine* ag_create(double rate) {if(!std::isfinite(rate))rate=48000;return new(std::nothrow) Engine(rate);}
 void ag_destroy(Engine* e){delete e;}
 void ag_voice(Engine* e,int i,int model,float tune,float decay,float tone,float level,float pan,float drive,int mute,int solo,int reverse,float start,float end){
-    if(!e)return;ag::VoiceParams p;p.model=ag::Model(std::clamp(model,0,2));p.tune=tune;p.decay=decay;p.tone=tone;p.level=level;p.pan=pan;p.drive=drive;p.mute=mute!=0;p.solo=solo!=0;p.reverse=reverse!=0;p.sampleStart=start;p.sampleEnd=end;e->drum.setParams(i,p);
+    if(!e)return;ag::VoiceParams p;p.model=ag::Model(std::clamp(model,0,4));p.tune=tune;p.decay=decay;p.tone=tone;p.level=level;p.pan=pan;p.drive=drive;p.mute=mute!=0;p.solo=solo!=0;p.reverse=reverse!=0;p.sampleStart=start;p.sampleEnd=end;e->drum.setParams(i,p);
 }
 void ag_step(Engine* e,int p,int v,int s,int on,float velocity,float probability,int ratchets){
     if(!e||p<0||p>=16||v<0||v>=11||s<0||s>=64)return;

@@ -1,0 +1,123 @@
+[
+  {
+    "lane": "kick",
+    "file": "drum_heavy_kick.flac",
+    "sha256": "9c141c8de85e695baf6d490c9904b057d97c2c49fa3985f0396fea320ce35a57",
+    "recordist_url": "https://freesound.org/people/Zajo/sounds/4832/",
+    "rate": 35000,
+    "frames": 9454,
+    "trim_start_frames": 0,
+    "normalized_peak": 0.9,
+    "processing": "mono; 25Hz highpass; FFmpeg resample to35000Hz; onset trim; peak normalize; maximum duration trim; 8ms tail fade; analytic mu255 signed-magnitude8bit companding"
+  },
+  {
+    "lane": "snare",
+    "file": "drum_snare_hard.flac",
+    "sha256": "1b2325523ed2a93da49df338ef861b4c35bfcbdc2e5e726ce1e873201883ffe4",
+    "recordist_url": "https://freesound.org/people/menegass/sounds/100058/",
+    "rate": 35000,
+    "frames": 15573,
+    "trim_start_frames": 0,
+    "normalized_peak": 0.9,
+    "processing": "mono; 25Hz highpass; FFmpeg resample to35000Hz; onset trim; peak normalize; maximum duration trim; 8ms tail fade; analytic mu255 signed-magnitude8bit companding"
+  },
+  {
+    "lane": "tom_low",
+    "file": "drum_tom_lo_hard.flac",
+    "sha256": "e8caf199618dfee0d9941446f5e80ef8722ee239def78f5b31bd6ec7c27d597e",
+    "recordist_url": "https://freesound.org/people/menegass/sounds/100064/",
+    "rate": 35000,
+    "frames": 26250,
+    "trim_start_frames": 1,
+    "normalized_peak": 0.9,
+    "processing": "mono; 25Hz highpass; FFmpeg resample to35000Hz; onset trim; peak normalize; maximum duration trim; 8ms tail fade; analytic mu255 signed-magnitude8bit companding"
+  },
+  {
+    "lane": "tom_mid",
+    "file": "drum_tom_mid_hard.flac",
+    "sha256": "712e960a8107edaf168e6c737eb5729e7c35cad8b0510c48aecf7e24357a2d06",
+    "recordist_url": "https://freesound.org/people/menegass/sounds/100066/",
+    "rate": 35000,
+    "frames": 22750,
+    "trim_start_frames": 0,
+    "normalized_peak": 0.9,
+    "processing": "mono; 25Hz highpass; FFmpeg resample to35000Hz; onset trim; peak normalize; maximum duration trim; 8ms tail fade; analytic mu255 signed-magnitude8bit companding"
+  },
+  {
+    "lane": "tom_high",
+    "file": "drum_tom_hi_hard.flac",
+    "sha256": "18d53d2dac65d1cd2b0b1f23eaa68e6233beb6e84d4352191cc6e6ea5200295c",
+    "recordist_url": "https://freesound.org/people/menegass/sounds/100062/",
+    "rate": 35000,
+    "frames": 19250,
+    "trim_start_frames": 0,
+    "normalized_peak": 0.9,
+    "processing": "mono; 25Hz highpass; FFmpeg resample to35000Hz; onset trim; peak normalize; maximum duration trim; 8ms tail fade; analytic mu255 signed-magnitude8bit companding"
+  },
+  {
+    "lane": "rim",
+    "file": "rim.wav",
+    "sha256": "11a6ce1c125ce42924c3f9e9b01356debd8bc9f5712ed6ed3274ce3bff57c387",
+    "recordist_url": "https://github.com/sgossner/VCSL",
+    "rate": 35000,
+    "frames": 8452,
+    "trim_start_frames": 341,
+    "normalized_peak": 0.9,
+    "processing": "mono; 25Hz highpass; FFmpeg resample to35000Hz; onset trim; peak normalize; maximum duration trim; 8ms tail fade; analytic mu255 signed-magnitude8bit companding"
+  },
+  {
+    "lane": "clap",
+    "file": "clap.wav",
+    "sha256": "4c9f3fe4a34733b9be6ed9ce5e5aad48b19c1029ae9c6dd1b96294a847539e3f",
+    "recordist_url": "https://github.com/sgossner/VCSL",
+    "rate": 35000,
+    "frames": 22750,
+    "trim_start_frames": 9,
+    "normalized_peak": 0.9,
+    "processing": "mono; 25Hz highpass; FFmpeg resample to35000Hz; onset trim; peak normalize; maximum duration trim; 8ms tail fade; analytic mu255 signed-magnitude8bit companding"
+  },
+  {
+    "lane": "hat_closed",
+    "file": "drum_cymbal_closed.flac",
+    "sha256": "f3b9d6bb14f75ba06ef633baf58b1f75f0e2ea5e07edd491f0a22aedb2480d62",
+    "recordist_url": "https://freesound.org/people/menegass/sounds/100053/",
+    "rate": 35000,
+    "frames": 7243,
+    "trim_start_frames": 0,
+    "normalized_peak": 0.9,
+    "processing": "mono; 25Hz highpass; FFmpeg resample to35000Hz; onset trim; peak normalize; maximum duration trim; 8ms tail fade; analytic mu255 signed-magnitude8bit companding"
+  },
+  {
+    "lane": "hat_open",
+    "file": "drum_cymbal_open.flac",
+    "sha256": "3a9cf6aacab05003fe3edaa9a9150841e080ecd3b7e6383571bc3570c23c7118",
+    "recordist_url": "https://freesound.org/people/menegass/sounds/100055/",
+    "rate": 35000,
+    "frames": 31500,
+    "trim_start_frames": 10,
+    "normalized_peak": 0.9,
+    "processing": "mono; 25Hz highpass; FFmpeg resample to35000Hz; onset trim; peak normalize; maximum duration trim; 8ms tail fade; analytic mu255 signed-magnitude8bit companding"
+  },
+  {
+    "lane": "crash",
+    "file": "drum_splash_hard.flac",
+    "sha256": "4a050000a71b313c449580b98b48d7c3a808eabfeccdffcf8dc35071d665a679",
+    "recordist_url": "https://freesound.org/people/menegass/sounds/100060/",
+    "rate": 35000,
+    "frames": 87500,
+    "trim_start_frames": 4,
+    "normalized_peak": 0.9,
+    "processing": "mono; 25Hz highpass; FFmpeg resample to35000Hz; onset trim; peak normalize; maximum duration trim; 8ms tail fade; analytic mu255 signed-magnitude8bit companding"
+  },
+  {
+    "lane": "ride",
+    "file": "drum_cymbal_soft.flac",
+    "sha256": "ab4cee3de9beaf99bf658f2ad54e1e9a8e5befbe96958133bdb818dfe348b0dd",
+    "recordist_url": "https://freesound.org/people/menegass/sounds/100057/",
+    "rate": 35000,
+    "frames": 33241,
+    "trim_start_frames": 0,
+    "normalized_peak": 0.9,
+    "processing": "mono; 25Hz highpass; FFmpeg resample to35000Hz; onset trim; peak normalize; maximum duration trim; 8ms tail fade; analytic mu255 signed-magnitude8bit companding"
+  }
+]

@@ -3,12 +3,14 @@
 #include "Circuit808.h"
 #include "Circuit909.h"
 #include "Sampled909.h"
+#include "LinnDrum.h"
+#include "Perkons.h"
 #include <array>
 #include <cstdint>
 #include <vector>
 
 namespace ag {
-enum class Model { Nine = 0, Eight = 1, Sample = 2 };
+enum class Model { Nine = 0, Eight = 1, Sample = 2, Linn = 3, Perkons = 4 };
 struct VoiceParams {
     Model model = Model::Nine;
     float tune = 0, decay = .5f, tone = .5f, level = .8f, pan = 0, drive = 0;
@@ -47,6 +49,8 @@ class DrumEngine {
     Circuit808 eight;
     Circuit909 nine;
     Sampled909 cymbals;
+    LinnDrum linn;
+    Perkons perkons;
     float smooth = .004f, fadeStep = .02f, dcPole = .998f;
 };
 } // namespace ag

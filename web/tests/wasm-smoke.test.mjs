@@ -44,7 +44,7 @@ for(let block=0;block<20;block++) {
 small.destroy();large.destroy();
 for(const rate of [44100,48000,96000]) {
  const engine=createEngine(module,rate),voiceState=createInitialState();
- for(let model=0;model<2;model++)for(let voice=0;voice<11;voice++) {
+ for(const model of [0,1,3,4])for(let voice=0;voice<11;voice++) {
   engine.stop();voiceState.voices[voice].model=model;engine.setState(voiceState);engine.trigger(voice,1);
   let sum=0;
   for(let block=0;block<150;block++)for(const channel of engine.render(128))for(const value of channel) {
@@ -55,3 +55,17 @@ for(const rate of [44100,48000,96000]) {
  engine.destroy();
 }
 console.log('WASM factory, stereo samples, controls, instance independence, bounds PASS; energy',energy);
+
+// New IDs remain distinct from custom sample mode (ID 2) in the compiled bridge.
+const modelSignatures=new Map();
+for(const model of [0,1,3,4]) {
+ const engine=createEngine(module,48000),s=createInitialState();
+ for(const v of s.voices)v.model=model;
+ engine.setState(s);engine.trigger(0,1);
+ let sound=0;const signature=[];for(let block=0;block<100;block++){const channel=engine.render(128)[0];for(const value of channel)sound+=value*value;if(block<16)signature.push(...channel);}
+ modelSignatures.set(model,signature);
+ assert.ok(sound>1e-5,`Model ${model} was rejected or incorrectly treated as sample mode`);
+ engine.stop();assert.ok(engine.render(128).every(c=>c.every(x=>x===0)));engine.destroy();
+}
+for(const model of [3,4])for(const other of [0,1,3,4])if(model!==other)
+ assert.ok(modelSignatures.get(model).some((sample,i)=>Math.abs(sample-modelSignatures.get(other)[i])>1e-5),`Compiled model ${model} aliases model ${other}`);

@@ -9,3 +9,10 @@
 .voice-random{font-size:7px;min-height:24px;min-width:23px;padding:3px 2px;letter-spacing:0}
 .pattern-actions{flex-wrap:wrap}
 @media(max-width:780px){.voice-row{position:sticky;left:0;z-index:2;background:#bbc2ac}.voice-row .voice-select{position:static}.voice-random{font-size:6px;min-width:20px}.voice-row .voice-select{font-size:8px}.pattern-actions{width:100%}}
+/* Saved engine selection for whole-kit sound randomization. */
+.engine-pool{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:2px 0 0 auto;padding:7px 11px 9px;border:1px solid currentColor;border-radius:3px;color:inherit;min-width:0}
+.engine-pool legend{font-size:8px;letter-spacing:.08em;padding:0 5px}
+.engine-pool label{display:flex;align-items:center;gap:5px;white-space:nowrap;font-size:9px;cursor:pointer}
+.engine-pool input[type=checkbox]{appearance:auto;width:12px;height:12px;min-height:0;padding:0;margin:0;accent-color:var(--amber);box-shadow:none;cursor:pointer}
+#engine-pool-hint{font-size:8px;opacity:.8}
+@media(max-width:780px){.engine-pool{width:100%;margin-left:0;gap:10px}#engine-pool-hint{width:100%}}

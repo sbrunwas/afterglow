@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 export const VOICE_NAMES = ['Kick','Snare','Low Tom','Mid Tom','High Tom','Rim','Clap','Closed Hat','Open Hat','Crash','Ride'];
+export const RANDOM_ENGINE_IDS = Object.freeze([0,1,3,4]);
 export const MIDI_NOTES = [36,38,41,45,48,37,39,42,46,49,51];
 export const midiNoteForVoice = (state, index) => index===10 && state.voices[index].model===1 ? 56 : MIDI_NOTES[index];
 export function createInitialState() {
@@ -17,7 +18,7 @@ export function createInitialState() {
     }
     return {length:16,steps};
   });
-  return {bank:{patterns,chain:Array.from({length:64},(_,i)=>i<16?i:0),chainLength:4},voices:Array.from({length:11},()=>({model:0,tune:0,decay:.5,tone:.5,level:.8,pan:0,drive:0,mute:false,solo:false,reverse:false,sampleStart:0,sampleEnd:1})),tempo:124,swing:.12,master:.75,masterDrive:0,selectedPattern:0,chainMode:false};
+  return {bank:{patterns,chain:Array.from({length:64},(_,i)=>i<16?i:0),chainLength:4},voices:Array.from({length:11},()=>({model:0,tune:0,decay:.5,tone:.5,level:.8,pan:0,drive:0,mute:false,solo:false,reverse:false,sampleStart:0,sampleEnd:1})),tempo:124,swing:.12,master:.75,masterDrive:0,selectedPattern:0,chainMode:false,randomEnginePool:[...RANDOM_ENGINE_IDS]};
 }
 const finite=(v,min,max,name)=>{if(typeof v!=='number'||!Number.isFinite(v)||v<min||v>max) throw new Error(`Invalid ${name}`);return v;};
 const integer=(v,min,max,name)=>{finite(v,min,max,name);if(!Number.isInteger(v))throw new Error(`Invalid ${name}`);return v;};
@@ -34,9 +35,11 @@ export function validateState(s) {
   const chainLength=integer(s.bank.chainLength,1,64,'chain length');
   if(!Array.isArray(s.bank.chain)||s.bank.chain.length<chainLength||s.bank.chain.length>64)throw new Error('Invalid chain.');
   const chain=s.bank.chain.map(v=>integer(v,0,15,'chain pattern'));while(chain.length<64)chain.push(0);
-  const voices=s.voices.map(v=>({model:integer(v.model,0,2,'engine'),tune:finite(v.tune,-24,24,'tune'),decay:finite(v.decay,0,1,'decay'),tone:finite(v.tone,0,1,'tone'),level:finite(v.level,0,1.5,'level'),pan:finite(v.pan,-1,1,'pan'),drive:finite(v.drive,0,1,'drive'),mute:boolean(v.mute,'mute'),solo:boolean(v.solo,'solo'),reverse:boolean(v.reverse,'reverse'),sampleStart:finite(v.sampleStart,0,.99,'sample start'),sampleEnd:finite(v.sampleEnd,.01,1,'sample end')}));
+  const randomEnginePool=s.randomEnginePool===undefined?[...RANDOM_ENGINE_IDS]:s.randomEnginePool;
+  if(!Array.isArray(randomEnginePool)||randomEnginePool.some(v=>!RANDOM_ENGINE_IDS.includes(v))||new Set(randomEnginePool).size!==randomEnginePool.length)throw new Error('Invalid random engine selection.');
+  const voices=s.voices.map(v=>({model:integer(v.model,0,4,'engine'),tune:finite(v.tune,-24,24,'tune'),decay:finite(v.decay,0,1,'decay'),tone:finite(v.tone,0,1,'tone'),level:finite(v.level,0,1.5,'level'),pan:finite(v.pan,-1,1,'pan'),drive:finite(v.drive,0,1,'drive'),mute:boolean(v.mute,'mute'),solo:boolean(v.solo,'solo'),reverse:boolean(v.reverse,'reverse'),sampleStart:finite(v.sampleStart,0,.99,'sample start'),sampleEnd:finite(v.sampleEnd,.01,1,'sample end')}));
   if(voices.some(v=>v.sampleEnd<=v.sampleStart))throw new Error('Sample end must follow its start.');
-  return {bank:{patterns,chain,chainLength},voices,tempo:finite(s.tempo,40,240,'tempo'),swing:finite(s.swing,0,.66,'swing'),master:finite(s.master,0,1,'master'),masterDrive:finite(s.masterDrive??0,0,1,'master drive'),selectedPattern:integer(s.selectedPattern,0,15,'selected pattern'),chainMode:boolean(s.chainMode,'chain mode')};
+  return {bank:{patterns,chain,chainLength},voices,tempo:finite(s.tempo,40,240,'tempo'),swing:finite(s.swing,0,.66,'swing'),master:finite(s.master,0,1,'master'),masterDrive:finite(s.masterDrive??0,0,1,'master drive'),selectedPattern:integer(s.selectedPattern,0,15,'selected pattern'),chainMode:boolean(s.chainMode,'chain mode'),randomEnginePool:[...randomEnginePool]};
 }
 export function validateSamples(samples) {
   if(!Array.isArray(samples)||samples.length!==11)throw new Error('Invalid sample bank.');

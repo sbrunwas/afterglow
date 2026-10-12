@@ -85,3 +85,17 @@ test('808 cymbal and cowbell labels follow each model across selection, grid and
  f.click(rows[9]);assert.equal(f.$('voice-name').textContent,'CYMBAL');f.change('model',0);assert.equal(f.$('voice-name').textContent,'CRASH');assert.equal(rows[9].lastChild.textContent,'CRASH');
  const saved=f.save();assert.equal(saved.voices.length,11);assert.equal(saved.bank.patterns[0].steps.length,11);
 });
+
+test('new sound options and persistent engine checkboxes constrain all-drums randomization and undo',async()=>{
+ const initial=createInitialState();initial.randomEnginePool=[3];initial.voices[0].level=.27;initial.voices[1].model=2;
+ const f=await fixture(initial);
+ assert.deepEqual([...f.$('model').querySelectorAll('option')].map(o=>Number(o.getAttribute('value'))),[0,1,3,4,2]);
+ assert.equal(f.$('engine-pool-3').checked,true);assert.equal(f.$('engine-pool-0').checked,false);
+ f.click('randomize-all-drums');let state=f.save();assert.ok(state.voices.every(v=>v.model===3));assert.deepEqual(state.bank,initial.bank);assert.equal(state.voices[0].level,.27);
+ f.click('undo-random');assert.deepEqual(f.save(),initial);
+ f.change('model',4);f.click('randomize-sound');assert.equal(f.save().voices[0].model,4);assert.equal(f.$('randomize-sound').disabled,false);f.click('undo-random');assert.equal(f.save().voices[0].model,4);
+ const before=f.save();f.click(f.document.querySelectorAll('.voice-random')[0]);state=f.save();assert.deepEqual(state.voices,before.voices);for(let v=1;v<11;v++)assert.deepEqual(state.bank.patterns[0].steps[v],before.bank.patterns[0].steps[v]);
+ f.$('engine-pool-3').checked=false;f.event(f.$('engine-pool-3'),'change');assert.equal(f.$('randomize-all-drums').disabled,true);assert.match(f.$('engine-pool-hint').textContent,/at least one/);assert.deepEqual(f.save().randomEnginePool,[]);
+ const empty=f.save();f.click('randomize-all-drums');assert.deepEqual(f.save(),empty);
+ f.$('engine-pool-4').checked=true;f.event(f.$('engine-pool-4'),'change');assert.equal(f.$('randomize-all-drums').disabled,false);f.click('randomize-all-drums');assert.ok(f.save().voices.every(v=>v.model===4));assert.deepEqual(f.save().randomEnginePool,[4]);
+});

@@ -197,7 +197,8 @@ AfterglowEditor::AfterglowEditor(AfterglowProcessor &p)
         voiceKnobs.push_back(std::make_unique<Knob>(name));
         add(*voiceKnobs.back());
     }
-    model.addItemList({"TR-909 inspired", "TR-808 inspired", "Your sample"}, 1);
+    model.addItemList({"TR-909 inspired", "TR-808 inspired", "Your sample",
+                       "Linn inspired", "Perkons inspired"}, 1);
     for (int i = 0; i < 16; ++i) {
         auto &b = patterns[(size_t)i];
         add(b);
@@ -499,7 +500,7 @@ void AfterglowEditor::paint(juce::Graphics &g) {
     g.setColour(cream);
     g.fillRect(0, 0, 1180, 66);
     text(g, "AFTERGLOW", {24, 8, 320, 36}, 30, ink);
-    text(g, "RHYTHM COMPOSER  /  909 / 808 / SAMPLE", {26, 43, 460, 16}, 10, ink.withAlpha(.7f));
+    text(g, "RHYTHM COMPOSER  /  909 / 808 / SAMPLE / LINN / PERKONS", {26, 43, 460, 16}, 10, ink.withAlpha(.7f));
     text(g, "01  /  INSTRUMENT", {886, 12, 270, 18}, 12, ink, juce::Justification::centredRight);
     bool running = processor.transportRunning.load();
     auto transport = running

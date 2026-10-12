@@ -41,11 +41,11 @@ std::string label(double rate, int model, int voice) {
         + " voice=" + std::to_string(voice);
 }
 void coverage(bool summary) {
-    double rms[2][11][3]{};
+    double rms[5][11][3]{};
     int rateIndex = 0;
     if (summary) std::cout << "rate,model,voice,rms,peak,energy_1ms,energy_5ms,energy_20ms\n";
     for (double rate : {44100., 48000., 96000.}) {
-        for (int model = 0; model < 2; ++model) {
+        for (int model : {0, 1, 3, 4}) {
             for (int voice = 0; voice < 11; ++voice) {
                 ag::DrumEngine engine;
                 engine.prepare(rate);
@@ -82,7 +82,7 @@ void coverage(bool summary) {
         }
         ++rateIndex;
     }
-    for (int model = 0; model < 2; ++model) for (int voice = 0; voice < 11; ++voice) {
+    for (int model : {0, 1, 3, 4}) for (int voice = 0; voice < 11; ++voice) {
         const auto bounds = std::minmax_element(rms[model][voice], rms[model][voice] + 3);
         require(*bounds.second / *bounds.first < 3.0,
             "Sample-rate-dependent level collapse " + label(0, model, voice)
@@ -91,7 +91,7 @@ void coverage(bool summary) {
 }
 void extremes() {
     for (double rate : {44100., 48000., 96000.}) {
-        for (int model = 0; model < 2; ++model) {
+        for (int model : {0, 1, 3, 4}) {
             // Cover both ends of independent pitch, damping, and filter controls.
             for (int corner = 0; corner < 8; ++corner) {
                 ag::DrumEngine engine;
@@ -145,7 +145,7 @@ void extremes() {
 }
 void choke() {
     for (double rate : {44100., 48000., 96000.}) {
-        for (int model = 0; model < 3; ++model) {
+        for (int model = 0; model < 5; ++model) {
             ag::DrumEngine closed, ringing;
             closed.prepare(rate);
             ringing.prepare(rate);
@@ -188,11 +188,11 @@ void choke() {
 }
 void instances() {
     for (double rate : {44100., 48000., 96000.}) {
-        for (int model = 0; model < 2; ++model) {
+        for (int model : {0, 1, 3, 4}) {
             ag::DrumEngine expected, tested, interferer;
             expected.prepare(rate); tested.prepare(rate); interferer.prepare(rate);
             configure(expected, ag::Model(model)); configure(tested, ag::Model(model));
-            configure(interferer, ag::Model(1 - model));
+            configure(interferer, model == 4 ? ag::Model::Nine : ag::Model::Perkons);
             std::vector<Frame> reference(8192);
             Frame l{}, r{}, scratch{};
             auto events = [](ag::DrumEngine& e, int n) {
@@ -221,7 +221,7 @@ void instances() {
     }
 }
 void controls() {
-    for (int model = 0; model < 2; ++model) for (int voice = 0; voice < 11; ++voice) {
+    for (int model : {0, 1, 3, 4}) for (int voice = 0; voice < 11; ++voice) {
         for (int control = 0; control < 3; ++control) {
             // Cymbal decay follows a slow modeled attack; measure through its tail.
             const int count = control == 1 ? 96000 : 12000;
@@ -264,6 +264,52 @@ void freeRunning() {
     require(energy > 1e-10 && difference > energy * .001,
             "808 metal generator appears reset or frozen between hits");
 }
+void mixedModels() {
+    for (double rate : {44100., 48000., 96000.}) {
+        ag::DrumEngine a, b;
+        a.prepare(rate); b.prepare(rate);
+        const int models[4] = {0, 1, 3, 4};
+        for (int i = 0; i < 11; ++i) {
+            ag::VoiceParams p;
+            p.model = ag::Model(models[i % 4]);
+            a.setParams(i, p); b.setParams(i, p);
+            a.trigger(i, .8f); b.trigger(i, .8f);
+        }
+        Frame al{}, ar{}, bl{}, br{};
+        for (int n = 0; n < 2048; ++n) {
+            if (n == 256) {
+                // Merely choosing another model must not reinterpret the ringing hit.
+                for (int i = 0; i < 11; ++i) {
+                    ag::VoiceParams p;
+                    p.model = ag::Model(models[(i + 1) % 4]);
+                    b.setParams(i, p);
+                }
+            }
+            frame(a, al, ar); frame(b, bl, br);
+            for (int i = 0; i < 11; ++i)
+                require(al[i] == bl[i] && ar[i] == br[i], "Model selection changed a playing tail without a trigger");
+        }
+        std::array<double, 11> energy{};
+        for (int n = 0; n < int(rate * .2); ++n) {
+            if (n % 97 == 0) {
+                const int lane = (n / 97) % 11;
+                ag::VoiceParams p;
+                p.model = ag::Model(models[(n / 97) % 4]);
+                p.tune = (n / 97) % 2 ? -24 : 24;
+                p.decay = .9f;
+                b.setParams(lane, p); b.trigger(lane, .8f);
+            }
+            frame(b, bl, br);
+            for (int i = 0; i < 11; ++i) energy[i] += double(bl[i]) * bl[i] + double(br[i]) * br[i];
+        }
+        for (double e : energy) require(e > 1e-12, "Mixed kit lost a voice after model swaps");
+        b.reset();
+        for (int n = 0; n < 256; ++n) {
+            frame(b, bl, br);
+            for (int i = 0; i < 11; ++i) require(bl[i] == 0 && br[i] == 0, "Reset left a mixed-model tail");
+        }
+    }
+}
 void noise909() {
     double referencePower = 0;
     for (double rate : {44100., 48000., 96000.}) {
@@ -298,7 +344,7 @@ void noise909() {
     }
 }
 void performance() {
-    for (double rate : {44100., 48000., 96000.}) for (int model = 0; model < 2; ++model) {
+    for (double rate : {44100., 48000., 96000.}) for (int model : {0, 1, 3, 4}) {
         ag::DrumEngine engine;
         engine.prepare(rate); configure(engine, ag::Model(model));
         Frame l{}, r{};
@@ -328,9 +374,10 @@ int main(int argc, char** argv) {
         if (mode == "controls" || mode == "all") controls();
         if (mode == "free-running" || mode == "all") freeRunning();
         if (mode == "noise" || mode == "all") noise909();
+        if (mode == "mixed" || mode == "all") mixedModels();
         if (mode == "performance") performance();
         require(mode == "coverage" || mode == "summary" || mode == "extremes" || mode == "choke"
-                || mode == "instances" || mode == "controls" || mode == "free-running" || mode == "noise" || mode == "performance" || mode == "all", "Unknown test suite");
+                || mode == "instances" || mode == "controls" || mode == "free-running" || mode == "noise" || mode == "mixed" || mode == "performance" || mode == "all", "Unknown test suite");
         std::cerr << "PASS circuit-probe " << mode << " checks=" << checks << '\n';
         return 0;
     } catch (const std::exception& error) {

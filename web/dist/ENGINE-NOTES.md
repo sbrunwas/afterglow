@@ -1,7 +1,7 @@
 # Afterglow engine research and fidelity notes
 
-Research and implementation: 12 October 2026. This release replaces the initial
-generic drum models with circuit-informed 808/909 voices. It is a substantial
+Research and implementation: 12 October 2026. Afterglow includes circuit-informed
+808/909 voices, Linn-inspired sampled drums and Perkons-inspired synthesis. It is a substantial
 change in sound, not a claim of component-exact or independently measured
 hardware equivalence.
 
@@ -112,12 +112,67 @@ and transient shapes, then conduct level-matched listening. A modern Roland
 emulation is a useful secondary reference, but cannot independently establish
 equivalence to vintage hardware.
 
+## LinnDrum-inspired sampled engine
+
+LinnDrum is a sampled instrument, so this engine uses acoustic recordings rather
+than synthesizing every hit. Its factory bank uses independently recorded CC0
+material with documented attribution, processed into companded eight-bit PCM.
+It does **not** contain original LinnDrum ROM data or claim the original sounds.
+Tune changes playback rate; Tone and Decay are Afterglow extensions available on
+every lane. The conversion is an approximation of a vintage companding character,
+not an AM6070 DAC or original analog reconstruction-filter simulation.
+
+Primary references include [Roger Linn’s FAQ](https://www.rogerlinndesign.com/about/roger-faq),
+[his account of copied drum sounds](https://www.rogerlinndesign.com/more/lmdrum),
+and [Tom Wiltshire’s variable-rate drum playback experiments](https://electricdruid.net/experiments-with-variable-rate-drum-sample-playback/).
+Public GitHub collections including oramics/sampled and BushDrum were reviewed;
+their downstream license labels did not establish original-recording provenance,
+so those Linn recordings were not bundled. Exact selected files, hashes, licenses
+and transformations are retained in `src/core/third_party/LinnDrum/PROVENANCE.md`.
+
+## Perkons HD-01-inspired synthesis
+
+The [official Erica Synths manual](https://www.ericasynths.lv/service/file/download/product_id/1167/file_id/521/)
+describes fold, wavetable, complex, resonant, slap, Karplus and noise/metal
+algorithm families across four voices. No verified open-source implementation
+of the proprietary HD-01 engine was found during this research pass. Afterglow
+therefore supplies original synthesis inspired by those families, expanded to its
+eleven sequencer lanes:
+
+| Lane | Afterglow interpretation |
+| --- | --- |
+| Kick / low tom | Folded oscillators with pitch envelopes |
+| Snare | Resonant tones and filtered noise |
+| Mid tom | Harmonic waveform morph |
+| High tom | Complex FM percussion |
+| Rim | Karplus-style excited delay |
+| Clap | Multiple noise bursts and a short tone |
+| Closed / open hats | Bandlimited pulse stack and noise |
+| Crash / ride | Metallic noise and modulated tones |
+
+FM ratios, waveform shapes, filters and envelopes are original design choices,
+not recovered hardware equations. Tone is a timbre/filter macro; tune and decay
+remain shared Afterglow controls. Two internal samples per host frame and a
+low-pass decimator reduce aliasing but do not eliminate it. No firmware, factory
+wavetables or samples are copied. HD-01’s four-channel algorithm/mode controls,
+analog output path, compressor and BBD-style effect are not recreated.
+
+## Engine selection and randomization
+
+Each lane can select 909, 808, Linn-inspired, Perkons-inspired or a custom sample.
+RANDOMIZE ALL DRUMS draws only from the checked built-in engines, independently
+for each lane. The pool is saved with the kit; older kits default to all four.
+An empty pool disables that action. RANDOMIZE SOUND varies the selected built-in
+voice without changing its engine. Row RND still changes only that lane’s pattern.
+UNDO RANDOM restores the preceding randomization.
+
 ## Verification and source
 
-Automated tests exercise the actual C++ and WebAssembly engines, all 22
+Automated tests exercise the actual C++ and WebAssembly engines. The earlier
+808/909 validation covered all 22
 model/voice combinations, multiple sample rates, extreme controls, repeated
 hits, choke, reset, independent instances, custom stereo samples, exports and
-UI state. The complete regression run passed 29/29 tests; the native DSP suite also
+UI state. That earlier regression run passed 29/29 tests; the native DSP suite also
 passed. ASan/UBSan stress checks passed (LeakSan disabled). On this server, the
 actual WASM engine rendered 6.8–14.2 times faster than real time under an
 all-voice stress pattern; p95 128-frame callbacks were 0.153–0.245 ms. Scheduler
@@ -126,9 +181,23 @@ These checks establish software behavior and numerical stability, not hardware
 identity. Actual browser/device and Ableton listening tests remain
 outside this environment.
 
+The four-family expansion passed **34/34 regression tests**: all 44 built-in
+model/voice combinations at 44.1/48/96 kHz, extreme controls, retriggers, mixed
+model tails, reset, hat choke, saved engine-pool selection, undo, and the actual
+rebuilt WebAssembly. Both new adapters also passed standalone ASan/UBSan stress
+checks at 8–384 kHz (LeakSanitizer disabled). Native core tests and JUCE processor/
+editor syntax checks passed; no new Windows runtime/Ableton session was tested.
+
+Actual WASM all-voice Perkons stress rendering on this server reached 3.70–7.25x
+real time across 44.1/48/96 kHz; mixed kits reached 6.70–12.46x. Their p95
+128-frame render times were 0.429–0.473 ms and 0.242–0.285 ms respectively.
+Scheduling outliers exceeded the 96 kHz callback budget, so these measurements
+are compute headroom, not a browser/mobile dropout guarantee. Device listening
+and visual browser QA remain unverified in this environment.
+
 [Complete source](https://github.com/sbrunwas/afterglow/tree/main/web).
 Vendored source retains its licenses and pinned provenance under
 `src/core/third_party/`. Authored application code is AGPL-3.0-only;
 GPL-3.0 components and MIT notices are retained separately. See
 [GPL text](Schwung-GPL-LICENSE.txt), [application license](LICENSE.txt) and
-[notices](NOTICE.txt). Not affiliated with or endorsed by Roland.
+[notices](NOTICE.txt). Not affiliated with or endorsed by Roland, Roger Linn or Erica Synths.

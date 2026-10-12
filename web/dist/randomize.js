@@ -23,6 +23,15 @@ export function randomPattern(length,rng=Math.random) {
 export function randomSound(params,voice,rng=Math.random) {
   if(params.model===2)return {...params};
   const pitchRange=voice===0?8:voice>=2&&voice<=4?12:voice>=7?5:9;
-  // Mixer settings, sample data/trims and the chosen 808/909 family are retained.
+  // Mixer settings, sample data/trims and the selected engine are retained.
   return {...params,tune:round(between(rng,-pitchRange,pitchRange),1),decay:round(between(rng,voice===7?.04:.1,voice===7?.52:.92)),tone:round(between(rng,.08,.95)),drive:round(Math.pow(rng(),2)*.65)};
+}
+
+export function randomAllDrums(voices, pool, rng=Math.random) {
+  if(!Array.isArray(pool)||!pool.length)throw new Error('Select at least one engine before randomizing all drums.');
+  if(pool.some(model=>![0,1,3,4].includes(model)))throw new Error('Invalid random engine selection.');
+  return voices.map((params,voice)=>{
+    const model=pool[Math.min(pool.length-1,Math.floor(rng()*pool.length))];
+    return randomSound({...params,model},voice,rng);
+  });
 }

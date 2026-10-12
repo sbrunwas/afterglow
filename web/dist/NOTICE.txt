@@ -53,3 +53,12 @@ THE SOFTWARE.
 
 Not affiliated with, approved or endorsed by Ableton or Roland. TR-808 is a
 trademark of Roland Corporation, referenced only to describe behaviour.
+
+New engine families
+-------------------
+Linn-inspired PCM uses independent CC0 acoustic recordings; source provenance,
+attribution and conversion details: src/core/third_party/LinnDrum/PROVENANCE.md.
+No original Linn ROM data is included. See LinnDrum-NOTICE.txt.
+Perkons-inspired synthesis is original AGPL-3.0-only Afterglow code informed by
+Erica Synths documentation, not copied firmware or a validated hardware clone.
+Not affiliated with Roger Linn or Erica Synths.

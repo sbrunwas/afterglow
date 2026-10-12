@@ -6,3 +6,6 @@ build*/
 
 !Source/third_party/ER99/*.wav
 !web/src/core/third_party/ER99/*.wav
+
+!Source/third_party/LinnDrum/sources/*.wav
+!web/src/core/third_party/LinnDrum/sources/*.wav

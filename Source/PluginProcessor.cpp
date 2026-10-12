@@ -46,7 +46,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout AfterglowProcessor::makePara
         auto n = [&](const char *s) { return juce::String(voiceNames[v]) + " " + s; };
         l.add(std::make_unique<juce::AudioParameterChoice>(
             juce::ParameterID{id("model"), 1}, n("engine"),
-            juce::StringArray{"909", "808", "Sample"}, 0));
+            juce::StringArray{"909", "808", "Sample", "Linn", "Perkons"}, 0));
         f(id("tune"), n("tune"), -24, 24, 0);
         f(id("decay"), n("decay"), .03f, 1, .5f);
         f(id("tone"), n("tone"), 0, 1, .5f);
@@ -205,7 +205,8 @@ juce::Result AfterglowProcessor::loadSample(int v, const juce::File &file) {
     }
     auto *choice = parameters.getParameter(voiceId(v, "model"));
     choice->beginChangeGesture();
-    choice->setValueNotifyingHost(1.f);
+    // Sample retains raw choice index 2 as new synthesis models are appended.
+    choice->setValueNotifyingHost(choice->convertTo0to1(static_cast<float>(ag::Model::Sample)));
     choice->endChangeGesture();
     return juce::Result::ok();
 }
@@ -260,7 +261,7 @@ void AfterglowProcessor::processBlock(juce::AudioBuffer<float> &out, juce::MidiB
     for (int v = 0; v < 11; ++v) {
         const auto &r = voiceRefs[v].p;
         ag::VoiceParams p;
-        p.model = (ag::Model)juce::jlimit(0, 2, (int)r[0]->load());
+        p.model = (ag::Model)juce::jlimit(0, 4, (int)r[0]->load());
         p.tune = r[1]->load();
         p.decay = r[2]->load();
         p.tone = r[3]->load();

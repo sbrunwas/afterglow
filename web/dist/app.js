@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {AfterglowAudio} from './audio.js';
 import {initSkins} from './skins.js';
-import {randomPattern,randomSound} from './randomize.js';
+import {randomPattern,randomSound,randomAllDrums} from './randomize.js';
 initSkins();
-import {createInitialState, encodePreset, decodePreset, MIDI_NOTES} from './state.js';
+import {createInitialState, encodePreset, decodePreset, MIDI_NOTES, RANDOM_ENGINE_IDS} from './state.js';
 
 const $ = id => document.getElementById(id);
 const names = ['BASS DRUM','SNARE DRUM','LOW TOM','MID TOM','HIGH TOM','RIM SHOT','HAND CLAP','CLOSED HAT','OPEN HAT','CRASH','RIDE'];
@@ -46,7 +46,7 @@ async function ensureAudio() {
 function guarded(fn) { return async event => { try { await fn(event); } catch(error) { status(error.message || String(error),true); } }; }
 function bind(id,fn) { $(id).addEventListener('click',guarded(fn)); }
 function rememberRandom(undo){randomUndo=undo;$('undo-random').disabled=false;}
-function randomizeSound(index){if(state.voices[index].model===2){status('Choose 909 or 808 to randomize synthesis.');return;}const previous=clone(state.voices[index]);rememberRandom(()=>{for(const key of ['tune','decay','tone','drive'])state.voices[index][key]=previous[key];selectVoice(index);});state.voices[index]=randomSound(state.voices[index],index);selectVoice(index);sync();status(`New synthesis settings for ${voiceName(index)}.`);}
+function randomizeSound(index){if(state.voices[index].model===2){status('Choose a built-in engine to randomize its sound.');return;}const previous=clone(state.voices[index]);rememberRandom(()=>{for(const key of ['tune','decay','tone','drive'])state.voices[index][key]=previous[key];selectVoice(index);});state.voices[index]=randomSound(state.voices[index],index);selectVoice(index);sync();status(`New sound settings for ${voiceName(index)}.`);}
 function randomizeLane(lane){const index=state.selectedPattern,selected=lane,previous=clone(currentPattern().steps[lane]);rememberRandom(()=>{state.bank.patterns[index].steps[selected]=previous;state.selectedPattern=index;selectVoice(selected);});const p=currentPattern();for(let s=0;s<64;s++){const hit=p.steps[lane][s];let likelihood=lane===0?(s%4===0?.92:.10):lane===1?(s%8===4?.95:.06):lane===7?(s%2===0?.8:.25):lane===8?(s%4===2?.6:.03):.18;hit.on=s<p.length&&Math.random()<likelihood;hit.velocity=.55+Math.random()*.4;hit.probability=1;hit.ratchets=1;}selectVoice(lane);sync();renderAll();status(`New variation for ${voiceName(lane)}.`);}
 function currentPattern(){ return state.bank.patterns[state.selectedPattern]; }
 function selectedStep(){ return currentPattern().steps[voice][step]; }
@@ -99,7 +99,14 @@ function renderVoice(){
     $('sample-clear').disabled=!sample;
     controls.forEach(refresh=>refresh());
 }
-function renderAll(){renderGrid();renderVoice();$('chain-mode').setAttribute('aria-pressed',String(state.chainMode));$('chain').value=state.bank.chain.slice(0,state.bank.chainLength).map(x=>x+1).join(', ');}
+function renderEnginePool(){
+    for(const model of RANDOM_ENGINE_IDS)$(`engine-pool-${model}`).checked=state.randomEnginePool.includes(model);
+    const empty=state.randomEnginePool.length===0;
+    $('randomize-all-drums').disabled=empty;
+    $('randomize-all-drums').setAttribute('aria-describedby','engine-pool-hint');
+    $('engine-pool-hint').textContent=empty?'Select at least one engine to randomize all drums.':'Used by Randomize All Drums';
+}
+function renderAll(){renderGrid();renderVoice();renderEnginePool();$('chain-mode').setAttribute('aria-pressed',String(state.chainMode));$('chain').value=state.bank.chain.slice(0,state.bank.chainLength).map(x=>x+1).join(', ');}
 function selectVoice(index){voice=index;renderVoice();renderGrid();}
 function makeGrid(){
     const empty=document.createElement('span');empty.className='section-label';empty.textContent='INSTRUMENT';$('sequencer').append(empty);
@@ -137,11 +144,13 @@ bind('paste',()=>{if(!clipboard)return;state.bank.patterns[state.selectedPattern
 bind('clear',()=>{if(!confirm(`Clear all voices in pattern ${state.selectedPattern+1}?`))return;for(const row of currentPattern().steps)for(const hit of row)hit.on=false;sync();renderAll();status('Pattern cleared.');});
 bind('randomize-pattern',()=>{const index=state.selectedPattern,previous=clone(currentPattern());rememberRandom(()=>{state.bank.patterns[index]=previous;state.selectedPattern=index;});state.bank.patterns[index]=randomPattern(previous.length);sync();renderAll();status(`New rhythm across all voices in pattern ${index+1}.`);});
 bind('randomize-all-drums',()=>{
+    if(!state.randomEnginePool.length){status('Select at least one engine to randomize all drums.');return;}
     const previous=clone(state.voices);
     rememberRandom(()=>{state.voices.forEach((params,index)=>{for(const key of ['model','tune','decay','tone','drive'])params[key]=previous[index][key];});});
-    state.voices=state.voices.map((params,index)=>randomSound({...params,model:Math.random()<.5?0:1},index));
-    sync();renderAll();status('New sounds for all drums: a random mix of 909 and 808. Undo Random restores the previous kit sounds.');
+    state.voices=randomAllDrums(state.voices,state.randomEnginePool);
+    sync();renderAll();status('New sounds for all drums from your checked engines. Undo Random restores the previous kit sounds.');
 });
+for(const model of RANDOM_ENGINE_IDS)$(`engine-pool-${model}`).addEventListener('change',()=>{state.randomEnginePool=RANDOM_ENGINE_IDS.filter(id=>$(`engine-pool-${id}`).checked);sync();renderEnginePool();});
 bind('randomize-sound',()=>randomizeSound(voice));
 bind('undo-random',()=>{if(!randomUndo)return;randomUndo();randomUndo=null;$('undo-random').disabled=true;sync();renderAll();status('Last randomization restored.');});
 bind('randomize',()=>randomizeLane(voice));

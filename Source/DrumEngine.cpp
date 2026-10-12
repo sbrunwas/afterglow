@@ -21,6 +21,8 @@ void DrumEngine::reset() {
     nine.prepare(sr);
     eight.prepare(sr);
     cymbals.prepare(sr);
+    linn.prepare(sr);
+    perkons.prepare(sr);
     for (int i = 0; i < numVoices; ++i) {
         const auto p = voices[i].p;
         const auto *s = voices[i].sample;
@@ -33,7 +35,7 @@ void DrumEngine::setParams(int i, const VoiceParams &input) {
     if (i < 0 || i >= numVoices)
         return;
     auto p = input;
-    if (int(p.model) < 0 || int(p.model) > 2)
+    if (int(p.model) < 0 || int(p.model) > 4)
         p.model = Model::Nine;
     p.tune = clean(p.tune, -24, 24);
     p.decay = clean(p.decay, 0, 1, .5f);
@@ -88,6 +90,10 @@ void DrumEngine::trigger(int i, float velocity) {
             ratio * std::clamp(v.sample->sampleRate, 1000.0, 768000.0) / sr * (p.reverse ? -1 : 1);
     } else if (p.model == Model::Eight) {
         eight.trigger(i, p.tune, p.decay, p.tone, v.velocity);
+    } else if (p.model == Model::Linn) {
+        linn.trigger(i, p.tune, p.decay, p.tone, v.velocity);
+    } else if (p.model == Model::Perkons) {
+        perkons.trigger(i, p.tune, p.decay, p.tone, v.velocity);
     } else if (i < 7) {
         nine.trigger(i, p.tune, p.decay, p.tone, v.velocity);
     } else {
@@ -98,9 +104,11 @@ void DrumEngine::renderFrame(float *left, float *right) {
     if (!left || !right)
         return;
     // Advance physical states and the shared 808 metal bus even between hits.
-    float eightFrame[numVoices]{}, nineFrame[numVoices]{};
+    float eightFrame[numVoices]{}, nineFrame[numVoices]{}, linnFrame[numVoices]{}, perkonsFrame[numVoices]{};
     eight.renderFrame(eightFrame);
     nine.renderFrame(nineFrame);
+    linn.renderFrame(linnFrame);
+    perkons.renderFrame(perkonsFrame);
     bool anySolo = false;
     for (const auto &v : voices)
         anySolo |= v.p.solo;
@@ -133,6 +141,8 @@ void DrumEngine::renderFrame(float *left, float *right) {
                 }
             } else {
                 l = r = v.playingModel == Model::Eight ? eightFrame[i]
+                      : v.playingModel == Model::Linn ? linnFrame[i]
+                      : v.playingModel == Model::Perkons ? perkonsFrame[i]
                       : i < 7 ? nineFrame[i] : cymbals.process(i);
             }
             v.gate += smooth * (v.targetGate - v.gate);
