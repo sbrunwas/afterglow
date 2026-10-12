@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {AfterglowAudio} from './audio.js';
+import {initSkins} from './skins.js';
+initSkins();
 import {createInitialState, encodePreset, decodePreset, MIDI_NOTES} from './state.js';
 
 const $ = id => document.getElementById(id);

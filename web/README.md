@@ -6,6 +6,7 @@ The browser edition of [Afterglow](https://github.com/sbrunwas/afterglow), with 
 
 Serve `dist/` over HTTPS (or localhost for development). Open the page and click **PLAY** to enable Web Audio. The live site uses HTTPS. Edit patterns before enabling audio if you prefer. Browser support requires WebAssembly, AudioWorklet and Web Audio; current Chrome, Edge, Firefox and Safari provide those features. Web MIDI input is optional and browser-dependent.
 
+- Switch skins from the header: Classic 909, Hacker (black/green), Midnight (black/blue), or Studio (bone/burgundy). Skin choice is stored separately on this device and does not change the kit or audio.
 - 11 voices; 909/808-inspired synthesis or one-shot custom samples per voice.
 - 16 patterns, 1–64 steps, 4 pages, swing, per-step velocity/chance/repeats, song chains, copy/paste and per-voice variation.
 - Tune, decay, tone, level, pan, drive, mute/solo, sample start/end/reverse. The original synth controls do not become sample filters.
