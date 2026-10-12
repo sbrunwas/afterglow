@@ -41,6 +41,10 @@ jobs:
           Copy-Item -Recurse docs dist/
           New-Item -ItemType Directory -Force dist/licenses
           Copy-Item Source/third_party/DaisySP/LICENSE dist/licenses/DaisySP-LICENSE.txt
+          Copy-Item Source/third_party/Schwung808/LICENSE dist/licenses/Schwung-GPL-LICENSE.txt
+          Copy-Item Source/third_party/Schwung808/THIRD_PARTY.md dist/licenses/Schwung808-MIT-NOTICE.md
+          Copy-Item Source/third_party/ER99/PROVENANCE.md dist/licenses/ER99-PROVENANCE.md
+          Copy-Item web/dist/ENGINE-NOTES.md dist/docs/ENGINE-NOTES.md
           Copy-Item build/_deps/juce-src/LICENSE.md dist/licenses/JUCE-LICENSE.md
           git archive --format=zip --output=dist/Afterglow-source.zip HEAD
           git -C build/_deps/juce-src archive --format=zip --output="$PWD/dist/JUCE-8.0.6-source.zip" HEAD

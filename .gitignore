@@ -3,3 +3,6 @@ build*/
 *.wav
 .DS_Store
 .vs/
+
+!Source/third_party/ER99/*.wav
+!web/src/core/third_party/ER99/*.wav

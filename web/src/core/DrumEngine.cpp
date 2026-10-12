@@ -9,43 +9,23 @@ constexpr double pi = 3.14159265358979323846;
 float clean(float x, float lo, float hi, float fallback = 0) {
     return std::isfinite(x) ? std::clamp(x, lo, hi) : fallback;
 }
-float pole(double hz, double sr) {
-    return float(1.0 - std::exp(-2 * pi * std::min(hz, sr * .42) / sr));
-}
-float soft(float x) {
-    return x / (1.0f + std::abs(x));
-}
-// Polynomial bandlimited step correction for square-wave transition alias control.
-float polyBlep(double phase, double dt) {
-    if (phase < dt) {
-        double t = phase / dt;
-        return float(t + t - t * t - 1);
-    }
-    if (phase > 1 - dt) {
-        double t = (phase - 1) / dt;
-        return float(t * t + t + t + 1);
-    }
-    return 0;
-}
 } // namespace
 void DrumEngine::prepare(double sampleRate) {
     sr = std::isfinite(sampleRate) ? std::clamp(sampleRate, 8000.0, 384000.0) : 44100;
     smooth = float(1 - std::exp(-1 / (sr * .003)));
     fadeStep = float(1 / (sr * .001));
-    dcPole = float(std::exp(-2 * pi * 8 / sr));
+    dcPole = float(std::exp(-2 * pi * 3 / sr));
     reset();
 }
 void DrumEngine::reset() {
-    nineKick.Init(float(sr));
-    nineSnare.Init(float(sr));
-    eightKick.Init(float(sr));
-    eightSnare.Init(float(sr));
+    nine.prepare(sr);
+    eight.prepare(sr);
+    cymbals.prepare(sr);
     for (int i = 0; i < numVoices; ++i) {
         const auto p = voices[i].p;
         const auto *s = voices[i].sample;
         voices[i] = Voice{};
         voices[i].sample = s;
-        voices[i].rng += uint32_t(i) * 73517u;
         setParams(i, p);
     }
 }
@@ -77,12 +57,6 @@ void DrumEngine::setSample(int i, const SampleData *s) {
     }
     v.sample = s;
 }
-float DrumEngine::noise(Voice &v) {
-    v.rng ^= v.rng << 13;
-    v.rng ^= v.rng >> 17;
-    v.rng ^= v.rng << 5;
-    return float(v.rng >> 8) * (2.0f / 16777216.0f) - 1;
-}
 void DrumEngine::trigger(int i, float velocity) {
     if (i < 0 || i >= numVoices || !std::isfinite(velocity) || velocity <= 0)
         return;
@@ -92,40 +66,14 @@ void DrumEngine::trigger(int i, float velocity) {
         voices[8].targetGate = 0; // CH closes OH, including user samples.
     v.fadeL = v.oldL;
     v.fadeR = v.oldR;
-    v.fade = 1;
+    v.fade = p.model == Model::Sample || v.playingModel != p.model ? 1.f : 0.f;
     v.playingModel = p.model;
     v.active = true;
     v.velocity = clean(velocity, 0, 1);
     v.age = 0;
-    v.env = 1;
-    v.pitchEnv = 1;
-    v.phase.fill(0);
-    v.low = v.highLow = v.highLow2 = 0;
-    v.gate = 0;
+    v.gate = p.model == Model::Sample ? 0.f : 1.f;
     v.targetGate = 1;
     const float ratio = std::exp2(p.tune / 12);
-    const bool eight = p.model == Model::Eight;
-    double tau = .08 + .6 * p.decay;
-    if (i == 5)
-        tau = .009 + .06 * p.decay;
-    if (i == 6)
-        tau = .055 + .19 * p.decay;
-    if (i == 7)
-        tau = .018 + .08 * p.decay;
-    if (i == 8)
-        tau = .10 + .65 * p.decay;
-    if (i == 9)
-        tau = .3 + 1.6 * p.decay;
-    if (i == 10)
-        tau = .2 + 1.2 * p.decay;
-    v.envMul = float(std::exp(-1 / (sr * tau)));
-    v.pitchMul = float(std::exp(-1 / (sr * (eight ? .035 : .018))));
-    v.filterA = pole(2500 + 11000 * p.tone, sr);
-    v.filterB = pole((i >= 7 ? 3500 : 650) + p.tone * (i >= 7 ? 4000 : 1800), sr);
-    if (eight && (i == 7 || i == 8)) {
-        v.filterA = pole(9500 + 3500 * p.tone, sr);
-        v.filterB = pole(5500 + 3500 * p.tone, sr);
-    }
     if (p.model == Model::Sample) {
         if (!v.sample || v.sample->left.empty() || !std::isfinite(v.sample->sampleRate) ||
             v.sample->sampleRate <= 0) {
@@ -138,125 +86,21 @@ void DrumEngine::trigger(int i, float velocity) {
         v.position = p.reverse ? v.end : v.start;
         v.rate =
             ratio * std::clamp(v.sample->sampleRate, 1000.0, 768000.0) / sr * (p.reverse ? -1 : 1);
-    } else if (i == 0) {
-        if (eight) {
-            eightKick.SetFreq(49 * ratio);
-            eightKick.SetDecay(.12f + .70f * p.decay);
-            eightKick.SetTone(p.tone);
-            eightKick.SetAccent(v.velocity);
-            eightKick.SetAttackFmAmount(.01f);
-            eightKick.SetSelfFmAmount(.01f);
-            eightKick.Trig();
-        } else {
-            nineKick.SetFreq(52 * ratio);
-            nineKick.SetDecay(.12f + .78f * p.decay);
-            nineKick.SetTone(p.tone);
-            nineKick.SetAccent(v.velocity);
-            nineKick.SetDirtiness(.15f);
-            nineKick.SetFmEnvelopeAmount(.65f);
-            nineKick.SetFmEnvelopeDecay(.25f);
-            nineKick.Trig();
-        }
-    } else if (i == 1) {
-        if (eight) {
-            eightSnare.SetFreq(180 * ratio);
-            eightSnare.SetDecay(.1f + .8f * p.decay);
-            eightSnare.SetTone(p.tone);
-            eightSnare.SetSnappy(.25f + .65f * p.tone);
-            eightSnare.SetAccent(v.velocity);
-            eightSnare.Trig();
-        } else {
-            nineSnare.SetFreq(185 * ratio);
-            nineSnare.SetDecay(.12f + .75f * p.decay);
-            nineSnare.SetFmAmount(.09f);
-            nineSnare.SetSnappy(.25f + .65f * p.tone);
-            nineSnare.SetAccent(v.velocity);
-            nineSnare.Trig();
-        }
-    }
-}
-float DrumEngine::synth(int i, Voice &v) {
-    const bool eight = v.playingModel == Model::Eight;
-    const auto &p = v.p;
-    if (i == 0)
-        return (eight ? eightKick.Process() : nineKick.Process()) * .85f;
-    if (i == 1)
-        return (eight ? eightSnare.Process() : nineSnare.Process()) * .8f;
-    const double ratio = std::exp2(p.tune / 12);
-    auto osc = [&](int n, double hz) {
-        v.phase[n] += std::min(hz, sr * .43) / sr;
-        v.phase[n] -= std::floor(v.phase[n]);
-        return float(std::sin(2 * pi * v.phase[n]));
-    };
-    float n = noise(v), out = 0;
-    if (i >= 2 && i <= 4) {
-        const double base = (i == 2 ? 105 : i == 3 ? 155 : 225) * ratio;
-        out = osc(0, base * (1 + (eight ? .25 : .6) * v.pitchEnv));
-        out += .18f * osc(1, base * 1.51) * v.pitchEnv;
-        out += n * (eight ? .05f : .14f) * v.pitchEnv * p.tone;
-        out *= v.env * .4f;
-    } else if (i == 5) {
-        out = (osc(0, (eight ? 480 : 390) * ratio) + .5f * osc(1, (eight ? 810 : 1620) * ratio)) *
-              .55f * v.env;
-    } else if (i == 6) {
-        v.low += v.filterA * (n - v.low);
-        v.highLow += v.filterB * (v.low - v.highLow);
-        const double t = v.age / sr;
-        // Three discrete hand-like pulses followed by a diffuse exponential tail.
-        float burst = 0;
-        for (int b = 0; b < 3; ++b) {
-            double dt = t - b * .011;
-            if (dt >= 0)
-                burst += float(std::exp(-dt / .003));
-        }
-        const float tail =
-            t > .027 ? float(std::exp(-(t - .027) / (.045 + .18 * p.decay))) * .65f : 0;
-        out = (v.low - v.highLow) * (burst + tail) * 1.7f;
+    } else if (p.model == Model::Eight) {
+        eight.trigger(i, p.tune, p.decay, p.tone, v.velocity);
+    } else if (i < 7) {
+        nine.trigger(i, p.tune, p.decay, p.tone, v.velocity);
     } else {
-        static constexpr double frequencies[6] = {205.3, 304.4, 369.6, 522.7, 540.0, 800.0};
-        float metal = 0;
-        for (int k = 0; k < 6; ++k) {
-            double f = frequencies[k] * ratio * (eight ? 1 : 1.63) * (i == 9 ? .85 : 1);
-            const double dt = std::min(f, sr * .4) / sr;
-            v.phase[k] += dt;
-            v.phase[k] -= std::floor(v.phase[k]);
-            if (eight) {
-                // Six independently related square oscillators, with bandlimited edges.
-                double shifted = v.phase[k] + .5;
-                shifted -= std::floor(shifted);
-                float square = (v.phase[k] < .5 ? 1.f : -1.f) + polyBlep(v.phase[k], dt) -
-                               polyBlep(shifted, dt);
-                metal += square / 6;
-            } else
-                metal += soft(9 * float(std::sin(2 * pi * v.phase[k]))) / 6;
-        }
-        if (!eight)
-            metal = .42f * metal + .58f * n;
-        if (i == 9)
-            metal = .40f * metal + .60f * n;
-        if (i == 10)
-            metal = .8f * metal + .2f * n;
-        v.low += v.filterA * (metal - v.low);
-        v.highLow += v.filterB * (v.low - v.highLow);
-        float highPassed = v.low - v.highLow;
-        if (eight && (i == 7 || i == 8)) {
-            // The hardware removes oscillator fundamentals aggressively; a second
-            // high-pass stage exposes their dense inharmonic upper partials.
-            v.highLow2 += v.filterB * (highPassed - v.highLow2);
-            highPassed -= v.highLow2;
-        }
-        out = highPassed * v.env * (i == 10 ? 2.2f : 2.8f) *
-              (eight && (i == 7 || i == 8) ? 4.4f
-               : eight && i == 10          ? 2.2f
-                                           : 1.0f);
+        cymbals.trigger(i, p.tune, p.decay, p.tone);
     }
-    v.env *= v.envMul;
-    v.pitchEnv *= v.pitchMul;
-    return out;
 }
 void DrumEngine::renderFrame(float *left, float *right) {
     if (!left || !right)
         return;
+    // Advance physical states and the shared 808 metal bus even between hits.
+    float eightFrame[numVoices]{}, nineFrame[numVoices]{};
+    eight.renderFrame(eightFrame);
+    nine.renderFrame(nineFrame);
     bool anySolo = false;
     for (const auto &v : voices)
         anySolo |= v.p.solo;
@@ -288,7 +132,8 @@ void DrumEngine::renderFrame(float *left, float *right) {
                     v.position += v.rate;
                 }
             } else {
-                l = r = synth(i, v);
+                l = r = v.playingModel == Model::Eight ? eightFrame[i]
+                      : i < 7 ? nineFrame[i] : cymbals.process(i);
             }
             v.gate += smooth * (v.targetGate - v.gate);
             l *= v.velocity * v.gate;

@@ -10,6 +10,17 @@ void text(juce::Graphics &g, const juce::String &s, juce::Rectangle<int> r, floa
     g.setFont(juce::FontOptions(size));
     g.drawText(s, r, j);
 }
+juce::String voiceName(AfterglowProcessor &processor, int voice) {
+    const auto model = processor.parameters.getRawParameterValue(
+        AfterglowProcessor::voiceId(voice, "model"));
+    if (model != nullptr && model->load() == 1.f) {
+        if (voice == 9)
+            return "Cymbal";
+        if (voice == 10)
+            return "Cowbell";
+    }
+    return AfterglowProcessor::voiceNames[(size_t)voice];
+}
 void formatSlider(juce::Slider &slider, int decimals) {
     slider.textFromValueFunction = [decimals](double value) {
         return juce::String(value, decimals);
@@ -107,7 +118,7 @@ void AfterglowEditor::Grid::paint(juce::Graphics &g) {
         bool selected = v == owner.selectedVoice;
         g.setColour(selected ? amber.withAlpha(.13f) : panel.withAlpha(.5f));
         g.fillRoundedRectangle(0, y + 1, (float)getWidth(), row - 2, 3);
-        text(g, AfterglowProcessor::voiceNames[(size_t)v], {12, (int)y, 120, (int)row}, 12,
+        text(g, voiceName(owner.processor, v), {12, (int)y, 120, (int)row}, 12,
              selected ? amber : cream);
         for (int s = 0; s < 16; ++s) {
             int abs = owner.page * 16 + s;
@@ -334,7 +345,7 @@ void AfterglowEditor::selectVoice(int v) {
             processor.parameters, AfterglowProcessor::voiceId(v, pair.second), *pair.first));
     modelAttachment = std::make_unique<ComboAttachment>(
         processor.parameters, AfterglowProcessor::voiceId(v, "model"), model);
-    voiceLabel.setText(juce::String(AfterglowProcessor::voiceNames[(size_t)v]).toUpperCase(),
+    voiceLabel.setText(voiceName(processor, v).toUpperCase(),
                        juce::dontSendNotification);
     sampleLabel.setText(processor.sampleName(v).isEmpty() ? "Drop WAV / AIFF / FLAC here"
                                                           : processor.sampleName(v),
@@ -394,7 +405,7 @@ void AfterglowEditor::filesDropped(const juce::StringArray &files, int, int) {
 void AfterglowEditor::loadSampleFile(const juce::File &f) {
     auto result = processor.loadSample(selectedVoice, f);
     message(result.wasOk() ? "Loaded " + f.getFileName() + " into " +
-                                 AfterglowProcessor::voiceNames[(size_t)selectedVoice]
+                                 voiceName(processor, selectedVoice)
                            : result.getErrorMessage());
     selectVoice(selectedVoice);
 }
@@ -423,7 +434,7 @@ void AfterglowEditor::chooseFile(int action) {
         if (action == 0) {
             auto result = safe->processor.loadSample(targetVoice, f);
             safe->message(result.wasOk() ? "Loaded " + f.getFileName() + " into " +
-                                               AfterglowProcessor::voiceNames[(size_t)targetVoice]
+                                               voiceName(safe->processor, targetVoice)
                                          : result.getErrorMessage());
             safe->selectVoice(safe->selectedVoice);
             return;
@@ -468,6 +479,8 @@ void AfterglowEditor::timerCallback() {
             items.add(juce::String(cached.chain[(size_t)i] + 1));
         chain.setText(items.joinIntoString(", "));
     }
+    voiceLabel.setText(voiceName(processor, selectedVoice).toUpperCase(),
+                       juce::dontSendNotification);
     auto sample = processor.sampleName(selectedVoice);
     sampleLabel.setText(sample.isEmpty() ? "Drop WAV / AIFF / FLAC here" : sample,
                         juce::dontSendNotification);

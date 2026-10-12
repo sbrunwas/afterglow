@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #pragma once
-#include "third_party/DaisySP/Drums/analogbassdrum.h"
-#include "third_party/DaisySP/Drums/analogsnaredrum.h"
-#include "third_party/DaisySP/Drums/synthbassdrum.h"
-#include "third_party/DaisySP/Drums/synthsnaredrum.h"
+#include "Circuit808.h"
+#include "Circuit909.h"
+#include "Sampled909.h"
 #include <array>
 #include <cstdint>
 #include <vector>
@@ -36,24 +35,18 @@ class DrumEngine {
         VoiceParams p;
         const SampleData *sample = nullptr;
         Model playingModel = Model::Nine;
-        std::array<double, 6> phase{};
         double age = 0, position = 0, start = 0, end = 0, rate = 1;
-        float velocity = 0, env = 0, envMul = .999f, pitchEnv = 0, pitchMul = .99f;
-        float low = 0, highLow = 0, highLow2 = 0, filterA = .5f, filterB = .2f;
+        float velocity = 0;
         float gate = 0, targetGate = 1, gain = .8f, panL = .7071f, panR = .7071f;
         float oldL = 0, oldR = 0, fadeL = 0, fadeR = 0, fade = 0;
         float dcL = 0, dcR = 0, prevL = 0, prevR = 0;
         bool active = false;
-        uint32_t rng = 0x127ab51u;
     };
     double sr = 44100;
     std::array<Voice, numVoices> voices{};
-    daisysp::SyntheticBassDrum nineKick;
-    daisysp::SyntheticSnareDrum nineSnare;
-    daisysp::AnalogBassDrum eightKick;
-    daisysp::AnalogSnareDrum eightSnare;
+    Circuit808 eight;
+    Circuit909 nine;
+    Sampled909 cymbals;
     float smooth = .004f, fadeStep = .02f, dcPole = .998f;
-    float synth(int, Voice &);
-    float noise(Voice &);
 };
 } // namespace ag

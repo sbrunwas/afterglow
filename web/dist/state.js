@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 export const VOICE_NAMES = ['Kick','Snare','Low Tom','Mid Tom','High Tom','Rim','Clap','Closed Hat','Open Hat','Crash','Ride'];
 export const MIDI_NOTES = [36,38,41,45,48,37,39,42,46,49,51];
+export const midiNoteForVoice = (state, index) => index===10 && state.voices[index].model===1 ? 56 : MIDI_NOTES[index];
 export function createInitialState() {
   const patterns = Array.from({length:16},(_,p)=>{
     const steps = Array.from({length:11},()=>Array.from({length:64},()=>({on:false,velocity:.8,probability:1,ratchets:1})));
@@ -89,7 +90,8 @@ export function exportMidi(state) {
     const start=i+(i%2?s.swing:0),finish=i+1+((i+1)%2&&i+1<p.length?s.swing:0);
     for(let r=0;r<t.ratchets;r++){
       const tick=Math.round(240*(start+(finish-start)*r/t.ratchets)),duration=Math.max(1,Math.min(60,Math.round(240*(finish-start)/t.ratchets/2)));
-      events.push({tick,order:1,bytes:[0x99,MIDI_NOTES[v],Math.max(1,Math.round(t.velocity*127))]},{tick:tick+duration,order:0,bytes:[0x89,MIDI_NOTES[v],0]});
+      const note=midiNoteForVoice(s,v);
+      events.push({tick,order:1,bytes:[0x99,note,Math.max(1,Math.round(t.velocity*127))]},{tick:tick+duration,order:0,bytes:[0x89,note,0]});
     }
   }
   events.sort((a,b)=>a.tick-b.tick||a.order-b.order);let last=0,track=[];

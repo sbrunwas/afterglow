@@ -1,12 +1,55 @@
 Afterglow browser edition
 
-Authored application/bridge code: AGPL-3.0-only. Full license: LICENSE.txt.
+Authored application/bridge/adapters: AGPL-3.0-only. Full license: LICENSE.txt.
 Source: https://github.com/sbrunwas/afterglow/tree/main/web
 
-The C++ drum core includes MIT-licensed DaisySP / Mutable Instruments Plaits drum models.
-Their original copyright notices remain in src/core/third_party/DaisySP.
-See DaisySP-LICENSE.txt for the MIT license text.
+Circuit-informed drum models adapt GPL-3.0 Schwung 8W8 and 9W9 by athousanddetails.
+808 rim derives from Sonic Pi; its MIT notice is retained below.
+909 cymbal recordings are bundled from Matthew Cieplak / Extralife's GPL-3.0 ER-99.
+Full GPL text: Schwung-GPL-LICENSE.txt. Pinned commits, source WAVs and notices are
+retained in src/core/third_party. See ENGINE-NOTES.md for references and limits.
 
-The browser build does not contain JUCE or a VST3 SDK runtime.
+Legacy DaisySP / Mutable Instruments sources retain MIT notices in their directory
+and DaisySP-LICENSE.txt; the new main engine uses the circuit adapters.
+
+No JUCE or VST3 SDK runtime is included in the browser build.
 Independent project, unaffiliated with Roland, Reason Studios or Ableton.
-909/808-inspired models; synthesized 909 cymbal approximations; no ROM samples bundled.
+These are circuit-informed models, not independently hardware-validated exact
+emulations. ER-99 audio is not claimed to be original Roland ROM dumps.
+
+# Third-party notices
+
+8W8 is GPL-3.0. The files below are MIT-licensed and carry this notice, as the
+MIT licence requires:
+
+- `src/vendor/sc808/sc808.scd`
+- `src/dsp/w8_voices.h` (the rim shot and the Engine A reference voices)
+
+```
+The MIT License (MIT)
+
+Copyright (c) 2012 - 2026 Samuel Aaron and contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+```
+
+## Disclaimer
+
+Not affiliated with, approved or endorsed by Ableton or Roland. TR-808 is a
+trademark of Roland Corporation, referenced only to describe behaviour.

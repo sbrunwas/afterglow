@@ -1,3 +1,5 @@
+> Engine update (October 2026): current source uses the circuit-informed adapters described in [ENGINE-NOTES](../web/dist/ENGINE-NOTES.md). The design below describes the original v0.1.0 Windows release and is retained as historical documentation.
+
 # Sound engine
 
 Afterglow has eleven independently triggered voices: kick, snare, low/mid/high tom,

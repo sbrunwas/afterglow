@@ -73,3 +73,15 @@ test('randomization is scoped to one pattern or synthesis lane and is undoable',
  f.change('model',2);assert.equal(f.$('randomize-sound').disabled,true);assert.equal(f.document.querySelectorAll('.voice-random')[1].disabled,false);f.click(f.document.querySelectorAll('.voice-random')[1]);assert.equal(f.save().voices[1].model,2);
  f.change('model',0);assert.equal(f.$('randomize-sound').disabled,false);f.click('randomize-sound');assert.ok(f.$('status').textContent.includes('SNARE DRUM'));
 });
+
+test('808 cymbal and cowbell labels follow each model across selection, grid and restore',async()=>{
+ const initial=createInitialState();initial.voices[9].model=1;initial.voices[10].model=1;
+ const f=await fixture(initial),rows=f.document.querySelectorAll('.voice-select'),random=f.document.querySelectorAll('.voice-random'),steps=f.document.querySelectorAll('.step');
+ assert.equal(rows[9].lastChild.textContent,'CYMBAL');assert.equal(rows[10].lastChild.textContent,'COWBELL');
+ assert.equal(rows[10].getAttribute('aria-label'),'Select COWBELL');assert.equal(random[10].getAttribute('aria-label'),'Randomize COWBELL pattern');assert.match(steps[160].getAttribute('aria-label'),/^COWBELL, step 1,/);
+ f.click(rows[10]);assert.equal(f.$('voice-name').textContent,'COWBELL');f.click(random[10]);assert.match(f.$('status').textContent,/COWBELL/);
+ f.change('model',0);assert.equal(f.$('voice-name').textContent,'RIDE');assert.equal(rows[10].lastChild.textContent,'RIDE');assert.match(steps[160].getAttribute('aria-label'),/^RIDE,/);assert.equal(random[10].getAttribute('aria-label'),'Randomize RIDE pattern');
+ f.change('model',1);assert.equal(f.$('voice-name').textContent,'COWBELL');f.change('model',2);assert.equal(f.$('voice-name').textContent,'RIDE');assert.equal(rows[10].lastChild.textContent,'RIDE');
+ f.click(rows[9]);assert.equal(f.$('voice-name').textContent,'CYMBAL');f.change('model',0);assert.equal(f.$('voice-name').textContent,'CRASH');assert.equal(rows[9].lastChild.textContent,'CRASH');
+ const saved=f.save();assert.equal(saved.voices.length,11);assert.equal(saved.bank.patterns[0].steps.length,11);
+});

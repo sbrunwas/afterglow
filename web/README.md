@@ -1,13 +1,13 @@
 # Afterglow — browser rhythm composer
 
-The browser edition of [Afterglow](https://github.com/sbrunwas/afterglow), with a worn 909-inspired hardware interface and the **same C++ synthesis/sequencer core** as the Windows VST3. No JUCE runtime is required in the browser. Original branding and assets; no Roland ROM samples.
+The browser edition of [Afterglow](https://github.com/sbrunwas/afterglow), with a worn 909-inspired hardware interface and the **same C++ synthesis/sequencer core** as the Windows VST3. No JUCE runtime is required in the browser. Original branding; circuit-informed synthesis and GPL-licensed ER-99 cymbal recordings. See [engine research and fidelity notes](dist/ENGINE-NOTES.md).
 
 ## Play
 
 Serve `dist/` over HTTPS (or localhost for development). Open the page and click **PLAY** to enable Web Audio. The live site uses HTTPS. Edit patterns before enabling audio if you prefer. Browser support requires WebAssembly, AudioWorklet and Web Audio; current Chrome, Edge, Firefox and Safari provide those features. Web MIDI input is optional and browser-dependent.
 
 - Switch skins from the header: Classic 909, Hacker (black/green), Midnight (black/blue), or Studio (bone/burgundy). Skin choice is stored separately on this device and does not change the kit or audio.
-- 11 voices; 909/808-inspired synthesis or one-shot custom samples per voice.
+- 11 voices; circuit-informed 909/808 synthesis or one-shot custom samples per voice.
 - 16 patterns, 1–64 steps, 4 pages, swing, per-step velocity/chance/repeats, song chains, copy/paste and per-voice variation.
 - RANDOMIZE PATTERN generates all eleven lanes of the selected pattern, preserving its length. RND next to each voice randomizes only that instrument’s pattern row, including sample voices. RANDOMIZE SOUND in the voice panel varies tune/decay/tone/drive within its selected 808/909 family, preserving mixer settings and samples. Sample voices are excluded from synthesis randomization. UNDO RANDOM restores the last randomization (including VARY VOICE).
 - Tune, decay, tone, level, pan, drive, mute/solo, sample start/end/reverse. The original synth controls do not become sample filters.
@@ -29,7 +29,7 @@ npm ci
 npm test
 ```
 
-Alternatively activate emsdk on PATH or set `EMXX=/path/to/em++`. The bridge compiles `src/core/DrumEngine.cpp`, `Sequencer.cpp` and their vendored DaisySP subset. The copied core matches the VST3 source at commit `38c19ae22fc2784939c8e67e62894c9ae3183b5e`. Core changes should be ported deliberately, with parity tests retained.
+Alternatively activate emsdk on PATH or set `EMXX=/path/to/em++`. The bridge compiles `src/core/DrumEngine.cpp`, `Sequencer.cpp` and header-only circuit models. The updated core is also in the native Source directory; the old Windows v0.1.0 download predates this upgrade. Vendored models are pinned with licenses/provenance. `python scripts/embed-cymbals.py` regenerates the PCM header from unchanged source WAVs.
 
 Web audio uses a synchronous WebAssembly instance inside AudioWorklet, sample-accurate C++ scheduling and fixed 128 MiB WASM memory. Parameter/bank differences avoid rewriting the entire native bank on every knob edit. A separate Worker handles offline export. Audio-thread rendering does not allocate DSP memory or rely on JavaScript timers for hit scheduling. Imported sample banks are bounded to6million stereo frames; the C++ bridge also enforces a64MiB sample budget.
 
@@ -39,8 +39,8 @@ Node tests execute the **actual WASM module** for all22 synthesized voices at44.
 
 DOM tests use LinkeDOM and test interactions without a browser. Actual browser autoplay/security/device audio, visual rendering and mobile input have not been verified in this environment. Numerical/adapter tests do not establish browser/device compatibility or fidelity to original drum hardware.
 
-This is a development edition. Stock909 cymbals are synthesized approximations; original909 cymbals were sampled. Circuit-identical emulation is not claimed. Browser timing follows its own clock, not Ableton's transport, and browser audio has stereo output rather than the VST3's auxiliary buses.
+This is a development edition. The 909 now uses sampled cymbals and circuit-informed analog voices; 808 uses resonator/metal-bank models, with cowbell replacing the old 808 ride lane. Circuit-identical emulation is not claimed; hardware-reference validation remains outstanding. Browser timing follows its own clock, not Ableton's transport, and browser audio has stereo output rather than the VST3's auxiliary buses.
 
 ## License
 
-Authored code: AGPL-3.0-only. DaisySP/Mutable Instruments drum code retains MIT notices. See `dist/LICENSE.txt`, `dist/DaisySP-LICENSE.txt` and `dist/NOTICE.txt`. The browser source is available through the in-app source link.
+Authored code: AGPL-3.0-only. Schwung 8W8/9W9 models and ER-99 samples retain GPL-3.0 terms; the Sonic Pi-derived 808 rim retains MIT notices. Legacy DaisySP/Mutable Instruments code retains its MIT notices. See `dist/LICENSE.txt`, `dist/Schwung-GPL-LICENSE.txt`, vendor notices and `dist/NOTICE.txt`. The browser source is available through the in-app source link.

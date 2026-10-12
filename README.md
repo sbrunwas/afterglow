@@ -1,8 +1,8 @@
 # Afterglow
 
-A ReBirth-inspired drum-machine **VST3 instrument for Windows x64**, built for pattern programming in Ableton Live. Default 909-inspired kit; switch each voice to 808-inspired synthesis or your own sample. Original interface and branding; no Roland ROMs or ReBirth assets.
+A ReBirth-inspired drum-machine **VST3 instrument for Windows x64**, built for pattern programming in Ableton Live. Default 909 kit; switch each voice to 808 synthesis or your own sample. Original interface and branding; no ReBirth assets.
 
-**Version 0.1.0 — initial development build.** Read `docs/VALIDATION.md` for exactly what was built and tested. Hardware matching and operation inside Ableton Live must not be assumed from unit tests.
+**Release status:** the downloadable Windows **v0.1.0** remains the original development build with the older inspired engines. The current source and browser edition include the circuit-informed 808/909 engine update described below; it is **not included in v0.1.0**. No new native runtime or Ableton Live QA has been completed for this update. Read `docs/VALIDATION.md` for the original build’s validation scope; unit tests do not establish hardware matching or Live compatibility.
 
 Download the Windows build from [GitHub Releases](https://github.com/sbrunwas/afterglow/releases). Choose **Afterglow-Windows-x64.zip**; source-only archives do not contain the plugin binary.
 
@@ -61,7 +61,9 @@ The plugin provides stereo Master plus 11 optional stereo voice buses. In Live, 
 
 ## Sound and fidelity
 
-The 808/909 kick and snare engines build on MIT-licensed **DaisySP / Mutable Instruments Plaits** drum models. Additional percussion is original procedural DSP. These are **inspired models, not a measured circuit-identical emulation**. The original 909 used sampled cymbals; our stock 909 hats/crash/ride are synthesized approximations. Load recordings you own into those slots if exact sampled cymbal character is important. No hardware comparison has been completed.
+The current source adds **circuit-informed 808 and 909 engines**, including sampled cymbals in the 909, with model provenance and licensing documented in [engine notes](web/dist/ENGINE-NOTES.md). These are not exact hardware clones; no measured hardware comparison has been completed. The 808’s last two lanes are **Cymbal / Cowbell**; the 909’s remain **Crash / Ride**. Existing kits retain all 11 lanes and their patterns, so an older saved 808 ride lane now plays cowbell. Native MIDI note and output-bus numbering remain compatible.
+
+The downloadable **Windows v0.1.0** still uses the earlier DaisySP / Mutable Instruments Plaits-derived kick and snare engines, original procedural percussion, and synthesized approximations of 909 cymbals. Downloading that existing release does not install the new engine.
 
 See `docs/DSP.md`, `docs/ARCHITECTURE.md`, and `THIRD_PARTY_NOTICES.md` for provenance and limitations.
 
@@ -89,4 +91,4 @@ ctest --test-dir build-core --output-on-failure
 
 ## License
 
-Project code is **AGPL-3.0-only**; third-party components keep their respective licenses. JUCE's open-source AGPL route is used. Bundled VST3 SDK licensing and DaisySP MIT notices are documented in `THIRD_PARTY_NOTICES.md`. This is an independent project with no affiliation with Roland, Propellerhead/Reason Studios, or Ableton.
+Project code is **AGPL-3.0-only**; third-party components keep their respective licenses. JUCE's open-source AGPL route is used. Bundled VST3 SDK licensing and DaisySP MIT notices are documented in `THIRD_PARTY_NOTICES.md`; the new engine’s Schwung-derived components retain their [GPL license](web/dist/Schwung-GPL-LICENSE.txt). This is an independent project with no affiliation with Roland, Propellerhead/Reason Studios, or Ableton.
