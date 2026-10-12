@@ -6,6 +6,8 @@ A ReBirth-inspired drum-machine **VST3 instrument for Windows x64**, built for p
 
 Download the Windows build from [GitHub Releases](https://github.com/sbrunwas/afterglow/releases). Choose **Afterglow-Windows-x64.zip**; source-only archives do not contain the plugin binary.
 
+The [browser edition](web/README.md) uses the same C++ sound and sequencing engines via WebAssembly, with a worn 909-inspired interface, custom samples, portable browser presets, and WAV/MIDI export. The ready-to-serve build and all source are in `web/`; serve `web/dist/` over HTTPS or localhost.
+
 ![Afterglow editor](docs/images/afterglow-editor.png)
 
 ## Install in Ableton Live on Windows

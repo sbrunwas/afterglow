@@ -1,0 +1,36 @@
+name: Browser engine and interaction tests
+on:
+  push:
+    paths: ['web/**', '.github/workflows/browser.yml']
+  pull_request:
+    paths: ['web/**', '.github/workflows/browser.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser-core:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Rebuild actual C++ engine to WebAssembly
+        run: |
+          git clone https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/afterglow-emsdk"
+          git -C "$RUNNER_TEMP/afterglow-emsdk" checkout 35ff8a6d150541276abbc6bae512ca90bcfbe220
+          TAR_OPTIONS=--no-same-owner python "$RUNNER_TEMP/afterglow-emsdk/emsdk.py" install 3.1.74
+          python "$RUNNER_TEMP/afterglow-emsdk/emsdk.py" activate 3.1.74
+          AFTERGLOW_EMSDK="$RUNNER_TEMP/afterglow-emsdk" bash scripts/build-wasm.sh
+      - name: Test engine, worklet, exports, presets and UI interactions
+        run: npm test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Afterglow-Browser-Static
+          path: web/dist/

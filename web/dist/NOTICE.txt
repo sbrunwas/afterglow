@@ -1,0 +1,12 @@
+Afterglow browser edition
+
+Authored application/bridge code: AGPL-3.0-only. Full license: LICENSE.txt.
+Source: https://github.com/sbrunwas/afterglow/tree/main/web
+
+The C++ drum core includes MIT-licensed DaisySP / Mutable Instruments Plaits drum models.
+Their original copyright notices remain in src/core/third_party/DaisySP.
+See DaisySP-LICENSE.txt for the MIT license text.
+
+The browser build does not contain JUCE or a VST3 SDK runtime.
+Independent project, unaffiliated with Roland, Reason Studios or Ableton.
+909/808-inspired models; synthesized 909 cymbal approximations; no ROM samples bundled.
