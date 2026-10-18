@@ -83,7 +83,7 @@ const voice=Array.from({length:11},()=>({model:0,tune:0,decay:.5,tone:.5,level:.
 const patterns=Array.from({length:16},(_,p)=>({length:16,steps:Array.from({length:11},(_,v)=>Array.from({length:64},(_,s)=>({on:s<16&&(v===0?s%4===0:v===1?s%8===4:v===7?s%2===0:v===6?p%4!==0&&s%8===4:false),velocity:.85,probability:1,ratchets:1})))}));
 const drum={bank:{patterns,chain:Array.from({length:64},(_,i)=>i%16),chainLength:4},voices:voice,tempo:126,swing:.08,master:.8,masterDrive:0,selectedPattern:0,chainMode:false,randomEnginePool:[0,1,3,4]};
 let selected=0,selectedStep=0,page=0,clipboard=null,randomUndo=null,sampleSlots=Array(11).fill(null),playing=false,step=0,next=0,interval,ctx,noiseBuffer,drumAudio=null,drumInit=null,rec=false,recChunks=[],recTap=null,fxNodes=null,mode='morph',A={},B={},links=[];
-const defs=[['drums','DRUM MACHINE','A','#d0b783'],['acid','ACID','B','#b0d7ba'],['chords','CHORDS','B','#afb9e6'],['sample','SAMPLER','A','#cfaed2']];
+const defs=[['drums','DRUM MACHINE','A','#d0b783'],['acid','MONO','B','#b0d7ba'],['chords','CHORDS','B','#afb9e6'],['sample','SAMPLER','A','#cfaed2']];
 const channels=Object.fromEntries(defs.map(([id,name,bus,color])=>[id,{id,name,bus,color,mute:false,solo:false,v:{hi:.5,hm:.5,lm:.5,low:.5,cut:1,res:0,delay:id==='acid'?.25:.05,reverb:id==='chords'?.45:.1,level:id==='drums'?.88:.6},nodes:null}]));
 const fx={time:.35,feedback:.35,space:.55,drive:.14};
 const bass01=createBass01(document.getElementById('c-bass-mount'),{externalClock:true,tempo:()=>drum.tempo});
