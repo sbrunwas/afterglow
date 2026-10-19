@@ -162,7 +162,17 @@ function createConductor({mount,sceneHost,analysisHost,ioHost,status,access,appl
   $('cs10-input-gain').oninput=e=>{if(inputGain)inputGain.gain.setTargetAtTime(+e.target.value,getAudio().context.currentTime,.02)};
   $('cs10-audio-out').onclick=async()=>{const graph=getAudio();if(!graph?.context){statusIO('Start JAM first');return}const context=graph.context;if(!context.setSinkId){statusIO('Output device selection unsupported here. Use your system default audio device.');return}try{let id='';if(navigator.mediaDevices?.selectAudioOutput){const chosen=await navigator.mediaDevices.selectAudioOutput();id=chosen.deviceId}else{const devices=await navigator.mediaDevices.enumerateDevices();id=devices.find(d=>d.kind==='audiooutput'&&d.deviceId!=='default')?.deviceId||''}if(!id)throw Error('No alternate output found');await context.setSinkId(id);statusIO('Output routed to selected audio device')}catch(e){statusIO('Output routing unavailable: '+e.message)}};
   refreshScenes();refreshLanes();
-  return {onStep,reset,resume,attachAnalyzers,recall:loadScene,capture:snapshot,refreshLanes,persist,scenes,lanes,get scene(){return sceneIndex},get bar(){return bar},destroy(){if(visualRAF)cancelAnimationFrame(visualRAF);if(stream)stream.getTracks().forEach(t=>t.stop());for(const m of [midiIn])if(m)m.onmidimessage=null}};
+  function exportProject(){return {scenes:structuredClone(scenes),lanes:structuredClone(lanes),sceneIndex,auto}}
+ function restoreProject(data){
+  if(!data||!Array.isArray(data.scenes)||data.scenes.length!==8||!Array.isArray(data.lanes)||data.lanes.length!==4)throw Error('Invalid conductor project');
+  const keepScenes=data.scenes.map((x,i)=>({name:String(x.name||'SCENE '+(i+1)).slice(0,16),bars:[1,2,4,8,16].includes(x.bars)?x.bars:8,data:x.data||null}));
+  const keepLanes=data.lanes.map((x,i)=>{if(!Array.isArray(x.steps)||x.steps.length!==16)throw Error('Invalid CLAWSTEP lane');
+   return {name:['BASS','LEAD','ATMOS','ACID'][i],enabled:!!x.enabled,target:DESTINATIONS.includes(x.target)?x.target:DESTINATIONS[i],midiChannel:clamp(+x.midiChannel||1,1,16),steps:x.steps.map(v=>({on:!!v.on,note:clamp(+v.note||36,0,127),gate:clamp(+v.gate||.7,.08,1),velocity:clamp(+v.velocity||100,1,127)}))}});
+  scenes.splice(0,8,...keepScenes);lanes.splice(0,4,...keepLanes);
+  sceneIndex=clamp(Math.floor(+data.sceneIndex||0),0,7);auto=!!data.auto;queued=-1;bar=0;absoluteBar=0;barOffset=0;
+  refreshScenes();refreshLanes();persist();
+ }
+ return {exportProject,restoreProject,onStep,reset,resume,attachAnalyzers,recall:loadScene,capture:snapshot,refreshLanes,persist,scenes,lanes,get scene(){return sceneIndex},get bar(){return bar},destroy(){if(visualRAF)cancelAnimationFrame(visualRAF);if(stream)stream.getTracks().forEach(t=>t.stop());for(const m of [midiIn])if(m)m.onmidimessage=null}};
 }
 
 return {createConductor};
