@@ -30,16 +30,37 @@ try{
  assert.equal(await page.locator('.strip .mute.muted').count(),7);
  await page.locator('.strip .mute').first().click();
  assert.equal(await page.locator('.strip .mute.muted').count(),6,'Individual unmute must work');
+ // Import a real PCM tone. Backup must preserve the actual audio, not just metadata.
+ await page.locator('#c-racktab').click();
+ await page.locator('#c-sampler-select').click();
+ const frames=4800,sr=48000,wav=Buffer.alloc(44+frames*4);
+ wav.write('RIFF',0);wav.writeUInt32LE(36+frames*4,4);wav.write('WAVE',8);wav.write('fmt ',12);
+ wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(2,22);wav.writeUInt32LE(sr,24);
+ wav.writeUInt32LE(sr*4,28);wav.writeUInt16LE(4,32);wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(frames*4,40);
+ for(let i=0;i<frames;i++){const v=Math.round(Math.sin(2*Math.PI*220*i/sr)*9000);wav.writeInt16LE(v,44+i*4);wav.writeInt16LE(v,46+i*4)}
+ const chooserEvent=page.waitForEvent('filechooser');
+ await page.locator('#smp-import').click();
+ const chooser=await chooserEvent;
+ await chooser.setFiles({name:'220hz.wav',mimeType:'audio/wav',buffer:wav});
+ await page.waitForFunction(()=>document.querySelector('#smp-status')?.textContent.includes('Imported'),null,{timeout:30000});
+ assert.match(await page.locator('#smp-slots .smp-slot').first().innerText(),/220hz/);
+ await page.locator('#c-desktab').click();
  await page.locator('#cs17-backup').click();
  await page.waitForFunction(()=>document.querySelector('#cs17-project-status')?.textContent.includes('backed up'),{timeout:30000});
+ await page.locator('#c-racktab').click();await page.locator('#c-sampler-select').click();
+ await page.locator('#smp-clear').click();
+ assert.match(await page.locator('#smp-slots .smp-slot').first().innerText(),/EMPTY/);
  await page.locator('#cs17-restore').click();
  await page.waitForFunction(()=>document.querySelector('#cs17-project-status')?.textContent.includes('Recovered local project'),{timeout:30000});
+ assert.match(await page.locator('#smp-slots .smp-slot').first().innerText(),/220hz/);
  const downloadPromise=page.waitForEvent('download');
  await page.locator('#cs17-save-project').click();
  const download=await downloadPromise;assert.match(download.suggestedFilename(),/ClawStudio-Project/);
  const temp=await download.path();const fs=await import('node:fs');
  const project=JSON.parse(fs.readFileSync(temp,'utf8'));
  assert.equal(project.format,'clawstudio-project');assert.equal(project.sampler.slots.length,4);
+ assert.equal(project.sampler.slots[0].pcm.encoding,'stereo-pcm16-le');
+ assert.equal(project.sampler.slots[0].pcm.frames,4800);
  assert.equal(project.conductor.lanes.length,4);
  assert.equal(project.harmony.key,2);
  assert.deepEqual(errors,[],'No uncaught browser exceptions');
