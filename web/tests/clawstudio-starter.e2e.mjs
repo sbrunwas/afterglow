@@ -37,6 +37,12 @@ try{
  assert.equal(await page.locator('.strip .mute.muted').count(),5);
  await page.locator('#cs18-demo').click();
  assert.match(await page.locator('#cs10-where').innerText(),/SCENE 01/);
+ // Exercise the actual WASM Drum Machine and studio transport (not just a mocked clock).
+ await page.locator('#c-play').click();
+ await page.waitForFunction(()=>document.querySelector('#c-play')?.textContent.includes('PAUSE'),null,{timeout:25000});
+ await page.waitForTimeout(4800); // Intro is two bars at 122 BPM (~3.93 seconds).
+ assert.match(await page.locator('#cs10-where').innerText(),/SCENE 02/, 'Auto-chain must advance from intro to groove');
+ await page.locator('#c-stop').click();
  assert.deepEqual(errors,[]);
  console.log('PASS starter song: harmony, density, scene launch, manual demo reload, saved state');
 }finally{await browser.close()}
