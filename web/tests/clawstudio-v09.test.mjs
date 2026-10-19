@@ -8,8 +8,10 @@ test('Texture has seven genuinely different synthesis paths',()=>{
   assert.ok(presets.length>=30);
   assert.deepEqual(new Set(presets.map(p=>p[1].engine)),new Set(TEXTURE_ENGINES));
 });
-test('classic Waldorf timbres retain the wavetable engine',()=>{
-  for(const [name,p] of INSTRUMENT_PRESETS.texture.filter(x=>x[0].startsWith('WALDORF /')&&x[0]!=='WALDORF / Cold Logic'&&x[0]!=='WALDORF / Digital Choir'&&x[0]!=='WALDORF / Razor Key')) assert.equal(p.engine,'WAVETABLE',name);
+test('core Waldorf wavetable patches survive while new formant and folded patches add diversity',()=>{
+  for(const [name,p] of INSTRUMENT_PRESETS.texture.filter(x=>x[0].startsWith('WALDORF /')&&!['WALDORF / Cold Logic','WALDORF / Digital Choir','WALDORF / Frozen Choir','WALDORF / Razor Key'].includes(x[0]))) assert.equal(p.engine,'WAVETABLE',name);
+  assert.equal(INSTRUMENT_PRESETS.texture.find(x=>x[0]==='WALDORF / Frozen Choir')[1].engine,'FORMANT');
+  assert.equal(INSTRUMENT_PRESETS.texture.find(x=>x[0]==='WALDORF / Razor Key')[1].engine,'WAVEFOLD');
 });
 test('measured 7-saw detune and mix are bounded and normalized',()=>{
   assert.equal(SUPER_SAW_OFFSETS.length,7);
