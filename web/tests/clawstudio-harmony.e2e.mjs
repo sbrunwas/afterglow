@@ -1,0 +1,46 @@
+// ClawStudio live DOM regression: run against localhost with Playwright.
+import assert from 'node:assert/strict';
+import {chromium} from 'playwright';
+const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+const page=await browser.newPage({acceptDownloads:true});
+const errors=[];page.on('pageerror',e=>errors.push(e.message));
+try{
+ await page.goto('http://127.0.0.1:8765/clawstudio.html',{waitUntil:'networkidle',timeout:30000});
+ await page.locator('#ch17-key').waitFor();
+ assert.equal(await page.locator('.strip').count(),7,'Existing mixer must retain seven channels');
+ assert.equal(await page.locator('#c-sampler-select').count(),1);
+ assert.equal(await page.locator('#poly-arp-generate').count(),1);
+ assert.equal(await page.locator('#ch17-generate').count(),1);
+ await page.locator('#c-desktab').click();
+ await page.locator('#ch17-key').selectOption('2');
+ await page.locator('#ch17-scale').selectOption('DORIAN');
+ assert.equal(await page.locator('#c-poly-mount #poly-arp-key').inputValue(),'2');
+ assert.equal(await page.locator('#c-bass-mount #b01-root').inputValue(),'26');
+ assert.equal(await page.locator('#c-acid-mount #cri-root').inputValue(),'38');
+ assert.equal(await page.locator('#c-texture-mount #cri-root').inputValue(),'50');
+ await page.locator('#ch17-generate').click();
+ assert.match(await page.locator('#ch17-status').innerText(),/generated linked/i);
+ await page.locator('#c-racktab').click();
+ await page.locator('#c-poly-select').click();
+ await page.locator('#poly-arp-generate').click();
+ assert.match(await page.locator('#ch17-status').innerText(),/Poly generated a melody/i);
+ await page.locator('#c-desktab').click();
+ await page.locator('.claw-mute-all').first().click();
+ assert.equal(await page.locator('.strip .mute.muted').count(),7);
+ await page.locator('.strip .mute').first().click();
+ assert.equal(await page.locator('.strip .mute.muted').count(),6,'Individual unmute must work');
+ await page.locator('#cs17-backup').click();
+ await page.waitForFunction(()=>document.querySelector('#cs17-project-status')?.textContent.includes('backed up'),{timeout:30000});
+ await page.locator('#cs17-restore').click();
+ await page.waitForFunction(()=>document.querySelector('#cs17-project-status')?.textContent.includes('Recovered local project'),{timeout:30000});
+ const downloadPromise=page.waitForEvent('download');
+ await page.locator('#cs17-save-project').click();
+ const download=await downloadPromise;assert.match(download.suggestedFilename(),/ClawStudio-Project/);
+ const temp=await download.path();const fs=await import('node:fs');
+ const project=JSON.parse(fs.readFileSync(temp,'utf8'));
+ assert.equal(project.format,'clawstudio-project');assert.equal(project.sampler.slots.length,4);
+ assert.equal(project.conductor.lanes.length,4);
+ assert.equal(project.harmony.key,2);
+ assert.deepEqual(errors,[],'No uncaught browser exceptions');
+ console.log('PASS: Poly auto-follow, shared key/scale, channel mute, project backup/restore, portable export');
+}finally{await browser.close()}
