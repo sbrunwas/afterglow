@@ -62,8 +62,8 @@ class ClawMasterPerformanceProcessor extends AudioWorkletProcessor {
   }else if(mode==='DELAY'){
    const delay=Math.max(192,Math.round(sampleRate*this.duration/(2+Math.round(amount*4))));
    outL=l*.64+this.read(this.histL,this.write-delay)*.55;outR=r*.64+this.read(this.histR,this.write-delay)*.55;
-  }else if(mode==='OFF')return [l,r];
-  return [outL,outR];
+  }else if(mode==='OFF'){this.modeL=l;this.modeR=r;return}
+  this.modeL=outL;this.modeR=outR;
  }
  process(inputs,outputs){
   const input=inputs[0]||[],output=outputs[0]||[];if(!output[0])return true;
@@ -84,9 +84,9 @@ class ClawMasterPerformanceProcessor extends AudioWorkletProcessor {
    const desired=this.enabled&&selected!=='OFF'?this.mix:0;
    this.smoothedMix+=(desired-this.smoothedMix)*.018;
    if(this.smoothedMix>.00001){
-    const processed=this.applyMode(selected,l,r,i,t,this.amount,manual);
-    l=l*(1-this.smoothedMix)+processed[0]*this.smoothedMix;
-    r=r*(1-this.smoothedMix)+processed[1]*this.smoothedMix;
+    this.applyMode(selected,l,r,i,t,this.amount,manual);
+    l=l*(1-this.smoothedMix)+this.modeL*this.smoothedMix;
+    r=r*(1-this.smoothedMix)+this.modeR*this.smoothedMix;
    }
    let macro=this.macro;
    if(this.transition&&t>=this.transition.start){
