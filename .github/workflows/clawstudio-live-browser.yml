@@ -1,0 +1,29 @@
+name: ClawStudio Live Browser QA
+on:
+  push:
+    branches: [clawstudio-session-recovery-v17]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  chromium-project-and-harmony:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: npm ci
+        working-directory: web
+      - run: npm install --no-save playwright@1.56.1
+        working-directory: web
+      - run: npx playwright install --with-deps chromium
+        working-directory: web
+      - name: Serve actual integrated instrument rack
+        run: |
+          python3 -m http.server 8765 --directory web/dist >/tmp/clawstudio-server.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8765/clawstudio.html >/dev/null && exit 0 || sleep 1; done
+          cat /tmp/clawstudio-server.log
+          exit 1
+      - name: Test real Chromium controls and recovery
+        run: node tests/clawstudio-harmony.e2e.mjs
+        working-directory: web
