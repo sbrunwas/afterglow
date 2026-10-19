@@ -6,6 +6,7 @@ const page=await browser.newPage({acceptDownloads:true});
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
 try{
  await page.goto('http://127.0.0.1:8765/clawstudio.html',{waitUntil:'networkidle',timeout:30000});
+ await page.locator('#c-desktab').click();
  await page.locator('#ch17-key').waitFor();
  assert.equal(await page.locator('.strip').count(),7,'Existing mixer must retain seven channels');
  assert.equal(await page.locator('#c-sampler-select').count(),1);
