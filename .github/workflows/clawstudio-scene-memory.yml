@@ -1,0 +1,17 @@
+name: ClawStudio Scene Lane Snapshot QA
+on:
+  push:
+    branches: [clawstudio-scene-lane-recall-v16]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-scene-memory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run CLAWSTEP scene state tests
+        run: node --test web/tests/clawstudio-scene-lanes.test.mjs
