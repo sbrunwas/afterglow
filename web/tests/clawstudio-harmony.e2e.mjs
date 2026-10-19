@@ -24,7 +24,7 @@ try{
  await page.locator('#c-racktab').click();
  await page.locator('#c-poly-select').click();
  await page.locator('#poly-arp-generate').click();
- assert.match(await page.locator('#ch17-status').innerText(),/Poly generated a melody/i);
+ assert.match(await page.locator('#ch17-status').innerText(),/Poly melody updated/i);
  await page.locator('#c-desktab').click();
  await page.locator('.claw-mute-all').first().click();
  assert.equal(await page.locator('.strip .mute.muted').count(),7);
