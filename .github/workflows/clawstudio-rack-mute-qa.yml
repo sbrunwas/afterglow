@@ -1,0 +1,30 @@
+name: ClawStudio Rack and Master Mute QA
+on:
+  push:
+    branches: [clawstudio-mute-all-low-notes-v14]
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Check JavaScript
+        run: |
+          node --check web/dist/bass01.js
+          node --check web/dist/rack-devices.js
+          node --check web/dist/texture-patch.js
+      - name: Run musical DSP tests
+        run: node --test web/dist/sidechain.test.mjs web/dist/poly-arp.test.mjs web/dist/texture-patch.test.mjs
+      - name: Verify audio routes and instrument features
+        run: |
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';import assert from 'node:assert/strict';
+          const h=fs.readFileSync('web/dist/clawstudio.html','utf8'),r=fs.readFileSync('web/dist/rack-devices.js','utf8'),b=fs.readFileSync('web/dist/bass01.js','utf8');
+          for(const token of ['claw-mute-all','setMuteAll(enabled)','compressor.connect(masterMute)','masterMute.connect(meter)','delay:id===\'acid\'?0','reverb:id===\'acid\'?0'])assert.ok(h.includes(token),'Missing master/dry mixer '+token);
+          for(const token of ['attachBuchlaPanel','patchModulation(this.patchRoutes','lpgFilter','wavefoldCurve(bucket/22)','BUCHLA / Struck Wood'])assert.ok(r.includes(token),'Missing Buchla routing '+token);
+          assert.ok(b.includes("knobMarkup('punch'"));assert.ok(b.includes('const a=.0008+'));assert.ok(b.includes('delay:0,feedback:'));assert.ok(b.includes('space:0'));
+          console.log('Signal path and synth checks passed');
+          NODE
