@@ -66,7 +66,7 @@ export function mountHarmonyPanel(host,state,{onApply,onFromPoly}={}){
  '<button type="button" id="ch17-poly">↙ FOLLOW POLY KEY</button><button type="button" id="ch17-sync">♬ ALIGN EXISTING NOTES</button><button type="button" id="ch17-generate">⚄ GENERATE LINKED PARTS</button></div><div id="ch17-status" class="ch17-status">The bass, acid and textures can follow the same harmony without sharing a sequence. Drum rhythms remain untouched.</div></section>';
  const $=q=>host.querySelector(q);
  function render(){const h=normalizeHarmony(state);for(const f of fields)$('#ch17-'+f).value=h[f];$('#ch17-auto').checked=h.autoLink;return h}
- function update(changes){Object.assign(state,normalizeHarmony({...state,...changes}));render()}
+ function update(changes){Object.assign(state,normalizeHarmony({...state,...changes}));render();onApply?.({generate:false})}
  for(const f of fields)$('#ch17-'+f).onchange=e=>update({[f]:f==='scale'?e.target.value:Number(e.target.value)});
  $('#ch17-auto').onchange=e=>update({autoLink:e.target.checked});
  $('#ch17-poly').onclick=()=>{onFromPoly?.();render();$('#ch17-status').textContent='Following POLY scale and chord root.'};
