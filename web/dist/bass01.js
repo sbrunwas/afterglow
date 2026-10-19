@@ -5,11 +5,11 @@ export const BASE={
   mode:'CLASSIC',saw:.67,pulse:.43,pwm:.42,sub:.67,subOct:1,noise:.055,
   detune:.31,fmRatio:2,fmIndex:.25,wave:.25,fold:.15,
   hp:.065,hpres:.18,lp:.54,lpres:.36,drive:.18,filterEnv:.42,keytrack:.36,
-  attack:.035,decay:.27,sustain:.52,release:.24,glide:.10,
+  attack:.015,decay:.22,sustain:.52,release:.20,punch:.35,glide:.10,
   fAttack:.015,fDecay:.22,fSustain:.03,fRelease:.12,filterSource:'OWN',filterTarget:'LP',filterPolarity:'UP',
   lfo1Rate:.25,lfo1Depth:.12,lfo1Target:'CUTOFF',
   lfo2Rate:.16,lfo2Depth:.08,lfo2Target:'PWM',
-  delay:.11,feedback:.29,space:.12,duck:.09,volume:.72
+  delay:0,feedback:.29,space:0,duck:.09,volume:.72
 };
 export const PRESETS={
  '101 / Rubberline':{mode:'CLASSIC',saw:.8,pulse:.57,pwm:.34,sub:.53,lp:.49,lpres:.35,decay:.2,sustain:.4,glide:.13},
@@ -128,9 +128,9 @@ export class Bass01Engine{
     freqTargets.forEach((o,i)=>{o.frequency.cancelScheduledValues(t);if(this.previousSlide&&this.lastNote!==null){o.frequency.setValueAtTime(hz(this.lastNote)/(i===4?Math.pow(2,p.subOct):1),t);o.frequency.exponentialRampToValueAtTime(values[i],t+glide)}else{o.frequency.setValueAtTime(values[i],t)}});this.fm.frequency.setValueAtTime(hzNote*p.fmRatio,t);this.fmGain.gain.setTargetAtTime(p.mode==='FM'?hzNote*p.fmIndex*6:0,t,.01);
     // Independent amp and filter ADSR envelopes. The end of the note gate
     // triggers a release, not an abrupt value jump, so short/dotted notes pop.
-    const a=.002+p.attack*p.attack*.58,d=.018+p.decay*p.decay*1.6;
-    const rel=.018+p.release*p.release*1.7;
-    const peak=accent?.9:.68,sustain=Math.max(.00001,p.sustain)*peak;
+    const a=.0008+p.attack*p.attack*.55,d=.008+p.decay*p.decay*1.35;
+    const rel=.012+p.release*p.release*1.55;
+    const peak=(accent?.85:.64)*(1+(p.punch??0)*.55),sustain=Math.max(.00001,p.sustain)*(.64+(p.punch??0)*.05);
     const gain=this.env.gain;
     gain.cancelScheduledValues(t);
     if(this.previousSlide){gain.setValueAtTime(Math.max(.0001,sustain),t);}
@@ -150,8 +150,8 @@ export class Bass01Engine{
       gain.setTargetAtTime(.0001,t+tail,rel/3);
     }
     const filterShape=p.filterSource==='AMP'?{a:p.attack,d:p.decay,s:p.sustain,r:p.release}:{a:p.fAttack??0,d:p.fDecay??.22,s:p.fSustain??0,r:p.fRelease??.12};
-    const fa=.002+filterShape.a*filterShape.a*.58;
-    const fd=.014+filterShape.d*filterShape.d*1.65;
+    const fa=.0009+filterShape.a*filterShape.a*.58;
+    const fd=.009+filterShape.d*filterShape.d*1.4;
     const fr=.02+filterShape.r*filterShape.r*1.8;
     const sign=p.filterPolarity==='DOWN'?-1:1;
     const keyScale= Math.pow(2,(midi-36)*p.keytrack/48);
@@ -192,7 +192,7 @@ export function createBass01(mount,{getContext=null,getDestination=null,tempo=()
  const sections=[
  group('01 / OSCILLATOR MATRIX',`<div class="b01modebar">${['CLASSIC','SUPER','WEST','FM','MODERN'].map(m=>`<button data-mode="${m}" class="b01mode">${m}</button>`).join('')}</div><div class="b01knobgrid">${[['saw','SAW'],['pulse','PULSE'],['pwm','PWM'],['sub','SUB'],['noise','NOISE'],['detune','DETUNE'],['fmIndex','FM INDEX'],['wave','WAVE MORPH'],['fold','FOLD'],['fmRatio','FM RATIO']].map(x=>knobMarkup(...x)).join('')}</div><div class="b01toggle"><label>SUB OCT <select data-option="subOct"><option value="1">−1 OCT</option><option value="2">−2 OCT</option></select></label></div>`),
  group('02 / DUAL RESONANT FILTER',`<div class="b01filterheader">MS · DUAL VCF <span>HP → DRIVE → LP</span></div><div class="b01knobgrid">${[['hp','HP FREQ'],['hpres','HP PEAK'],['lp','LP FREQ'],['lpres','LP PEAK'],['drive','DRIVE'],['filterEnv','ENV AMT'],['keytrack','KEYTRACK']].map(x=>knobMarkup(...x)).join('')}</div><div class="b01toggle b01options"><label>FILTER SOURCE <select data-option="filterSource"><option value="OWN">FILTER ADSR</option><option value="AMP">AMP ADSR</option></select></label><label>ENV ROUTE <select data-option="filterTarget"><option value="LP">LOW PASS</option><option value="HP">HIGH PASS</option><option value="BOTH">BOTH FILTERS</option></select></label><label>POLARITY <select data-option="filterPolarity"><option value="UP">OPEN ↑</option><option value="DOWN">CLOSE ↓</option></select></label></div>`),
- group('03 / AMP + FILTER ADSR',`<div class="b01envelopes"><div><b>AMP ENVELOPE</b><div class="b01envelopegrid">${[['attack','ATTACK'],['decay','DECAY'],['sustain','SUSTAIN'],['release','RELEASE']].map(x=>knobMarkup(...x)).join('')}</div></div><div><b>FILTER ENVELOPE</b><div class="b01envelopegrid">${[['fAttack','ATTACK'],['fDecay','DECAY'],['fSustain','SUSTAIN'],['fRelease','RELEASE']].map(x=>knobMarkup(...x)).join('')}</div></div><div class="b01envelopeextras">${knobMarkup('glide','PORTAMENTO')}${knobMarkup('volume','LEVEL')}</div></div>`),
+ group('03 / AMP + FILTER ADSR',`<div class="b01envelopes"><div><b>AMP ENVELOPE</b><div class="b01envelopegrid">${[['attack','ATTACK'],['decay','DECAY'],['sustain','SUSTAIN'],['release','RELEASE']].map(x=>knobMarkup(...x)).join('')}</div></div><div><b>FILTER ENVELOPE</b><div class="b01envelopegrid">${[['fAttack','ATTACK'],['fDecay','DECAY'],['fSustain','SUSTAIN'],['fRelease','RELEASE']].map(x=>knobMarkup(...x)).join('')}</div></div><div class="b01envelopeextras">${knobMarkup('glide','PORTAMENTO')}${knobMarkup('punch','SNAP / PUNCH')}${knobMarkup('volume','LEVEL')}</div></div>`),
  group('04 / MODULATION MATRIX',`<div class="b01lfo">${[1,2].map(n=>`<div><strong>LFO ${n}</strong><div class="b01twoknobs">${knobMarkup('lfo'+n+'Rate','RATE')}${knobMarkup('lfo'+n+'Depth','DEPTH')}</div><label>TARGET <select data-option="lfo${n}Target"><option>CUTOFF</option><option>PWM</option><option>PITCH</option><option>FM</option></select></label></div>`).join('')}</div>`),
  group('05 / OUTBOARD + PUMP',`<div class="b01knobgrid">${[['delay','DUB SEND'],['feedback','ECHO FDBK'],['space','SPACE'],['duck','PUMP']].map(x=>knobMarkup(...x)).join('')}</div>`)
  ];
