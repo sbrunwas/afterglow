@@ -18,6 +18,17 @@ export function newPolyArp(){
  return {enabled:false,key:0,scale:'MINOR',degree:0,chord:'TRIAD',direction:'UP',octaves:2,rate:'1/16',gate:.66,steps:8,
  cells:Array.from({length:16},()=>({shift:0,on:true,accent:false}))};
 }
+export function quantizeToScale(note,key=0,name='MINOR'){
+ const scale=SCALES[name]||SCALES.MINOR;
+ const fits=n=>scale.includes(((n-key)%12+12)%12);
+ const input=Math.max(0,Math.min(127,Math.round(note)));
+ for(let distance=0;distance<13;distance++){
+  const low=input-distance,high=input+distance;
+  if(low>=0&&fits(low))return low;
+  if(high<=127&&fits(high))return high;
+ }
+ return input;
+}
 const degreeAt=(scale,index)=>{const size=scale.length;const div=Math.floor(index/size);return scale[((index%size)+size)%size]+12*div};
 export function buildArpChord(p,base=60){
  const arp={...newPolyArp(),...p},scale=SCALES[arp.scale]||SCALES.MINOR;
@@ -48,7 +59,7 @@ export function arpEventsAtStep(config,base,transportStep,stepDuration){
   else if(direction==='PLAYED')ni=(Math.floor(idx/chord.length)%Math.max(1,Number(arp.octaves)||1))*chord.length+(idx%chord.length);
   const scale=SCALES[arp.scale]||SCALES.MINOR;
   const offset=degreeAt(scale,Math.trunc(cell.shift||0));
-  const note=Math.min(127,Math.max(0,range[ni]+offset));
+  const note=quantizeToScale(range[ni]+offset,Number(arp.key||0),arp.scale);
   const unit=stepDuration*div;
   events.push({note,offset:j*(stepDuration/2),length:Math.max(.025,unit*Math.max(.15,Math.min(1.5,Number(arp.gate)||.66))),velocity:cell.accent?1:.72,arpIndex:idx});
  }
