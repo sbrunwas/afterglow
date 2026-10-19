@@ -13,7 +13,7 @@ try{
  await page.locator('[data-master-step="2"]').click();
  assert.match(await page.locator('[data-master-step="2"]').innerText(),/REVERSE/);
  await page.locator('[data-map-target="0"]').selectOption('CRUSH');
- await page.locator('[data-map-depth="0"]').fill('.65');
+ await page.locator('[data-map-depth="0"]').evaluate(input=>{input.value='0.65';input.dispatchEvent(new Event('input',{bubbles:true}))});
  assert.equal(await page.locator('[data-map-target="0"]').inputValue(),'CRUSH');
  await page.locator('#cs10-store').click();
  await page.locator('#cmf-power').click();
