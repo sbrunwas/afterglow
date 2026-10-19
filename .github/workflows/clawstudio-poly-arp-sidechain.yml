@@ -1,0 +1,39 @@
+name: ClawStudio Poly Arp + Sidechain QA
+on:
+  push:
+    branches: [clawstudio-kick-sidechain-v13]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-web-audio-logic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static syntax
+        run: |
+          node --check web/dist/poly-arp.js
+          node --check web/dist/poly-arp-ui.js
+          node --check web/dist/sidechain.js
+          node --check web/dist/rack-devices.js
+      - name: Musical logic and routing tests
+        run: node --test web/dist/poly-arp.test.mjs web/dist/sidechain.test.mjs
+      - name: Integrated mixer and rack contract
+        run: |
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';import assert from 'node:assert/strict';
+          const s=fs.readFileSync('web/dist/clawstudio.html','utf8');
+          const r=fs.readFileSync('web/dist/rack-devices.js','utf8');
+          for(const id of ['c-sidechain','c-sc-count','sidechain-toggle'])assert.ok(s.includes(id),'Missing '+id);
+          assert.ok(s.includes('kickSidechain.trigger'),'Sidechain not connected to clock');
+          assert.ok(s.includes('kickSidechain.connect(ctx,c.id)'),'Sidechain not inserted into channel routing');
+          assert.ok(s.includes('poly-arp.css'),'Poly arp stylesheet absent');
+          assert.ok(r.includes('attachPolyArp(mount,state)'),'Poly UI integration absent');
+          assert.ok(r.includes('arpEventsAtStep(state.polyArp'),'Poly audio scheduling absent');
+          console.log('UI and audio-routing invariants pass');
+          NODE
