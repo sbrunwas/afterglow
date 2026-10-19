@@ -330,5 +330,5 @@ export function createRackInstrument(mount,type,{externalClock=false,tempo=()=>1
   engine.note(state.root+state.patterns[state.pattern][selected].note,ctx.currentTime+.035,.3);
   $('#cri-status').textContent='Previewing '+(p.engine||'WAVETABLE')+' · '+currentPreset;
  }catch(e){$('#cri-status').textContent='Audition unavailable: '+e.message}};
- patch(0);state.steps=type==='acid'?16:type==='texture'?16:8;syncUI();return {type,state,init,scheduleStep,stop,dispose:()=>{stop();engine?.dispose()},setActive:v=>state.active=!!v,getParams:()=>({...p}),getEngine:()=>engine};
+ patch(0);state.steps=type==='acid'?16:type==='texture'?16:8;syncUI();return {type,state,init,scheduleStep,stop,dispose:()=>{stop();engine?.dispose()},setActive:v=>state.active=!!v,getParams:()=>({...p}),getEngine:()=>engine,refreshUI:syncUI};
 }
