@@ -83,7 +83,7 @@ export function installStarterPatterns({drum,mono,poly,texture,acid}){
 }
 const level={drums:.76,acid:.44,poly:.40,texture:.32,tb303:.38,sample:.44,external:0};
 function starterSceneSnapshot(base,scene,index){
- const copy=clone(base);
+ const copy=clone(base);copy.starterId='blue-hour-v1';
  copy.drumPattern=index;copy.bassPattern=index;copy.polyPattern=index;copy.texturePattern=index;copy.acidPattern=index;
  copy.monoRoot=scene.root;copy.acidRoot=scene.root+12;copy.textureRoot=scene.root+24;copy.polyRoot=scene.polyRoot;
  copy.polyArp={...copy.polyArp,key:9,scale:'MINOR',degree:scene.degree,enabled:true};
