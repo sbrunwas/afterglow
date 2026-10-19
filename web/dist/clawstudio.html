@@ -507,11 +507,46 @@ setInterval(async()=>{
  finally{projectSaving=false}
 },90000);
 
+
+function starterPalette(){
+ const monoPatch=$('c-bass-mount').querySelector('#b01-preset');
+ if(monoPatch){monoPatch.value='101 / Rubberline';monoPatch.dispatchEvent(new Event('change',{bubbles:true}))}
+ for(const [type,name] of [['poly','TRANCE / Dream Gate'],['texture','WALDORF / 2002 Glass'],['acid','303 / Minimal Pulse']]){
+  const select=$('c-'+type+'-mount').querySelector('#cri-presets');
+  const option=[...(select?.options||[])].find(o=>o.textContent===name);
+  if(option){select.value=option.value;select.dispatchEvent(new Event('change',{bubbles:true}))}
+ }
+ installStarterPatterns({drum,mono:bass01,poly:extraRacks.poly,texture:extraRacks.texture,acid:extraRacks.acid});
+ Object.assign(harmonyState,{key:9,scale:'MINOR',degree:0,autoLink:true});harmonicPanel?.render();
+ for(const c of Object.values(channels)){c.solo=false;c.el?.querySelector('.solo')?.classList.remove('soloed')}
+ drumAudio?.setState(drum);
+ bass01.getEngine()?.update?.(bass01.state.params);
+ for(const mod of Object.values(extraRacks)){mod.getEngine()?.update?.();mod.refreshUI?.()}
+ bass01.refreshUI?.();renderRack();renderVoice();$('c-bpm').value=drum.tempo;
+}
+function activateStarterSong({fresh=false}={}){
+ if(playing)pause();
+ if(!fresh&&!window.confirm('Replace the current instrument patterns and song map with BLUE HOUR? Save Project first to keep your own work.'))return;
+ starterPalette();
+ if(fresh&&conductor.scenes?.[0]?.data?.starterId==='blue-hour-v1'){
+  // This browser already stored Blue Hour: retain user-edited scene lengths
+  // and names, but restore the factory underlying (unsaved) instrument patterns.
+  conductor.recall(0);
+ }else{
+  conductor.restoreProject(buildStarterArrangement(studioSnapshot()));
+  conductor.recall(0);
+ }
+ $('c-status').textContent='BLUE HOUR · 122 BPM · A MINOR · press JAM to hear the arranged scenes';
+}
+
 conductor=createConductor({mount:$('cs10-seq-host'),sceneHost:$('cs10-scene-host'),analysisHost:$('cs10-analysis-host'),ioHost:$('cs10-io-host'),status:message=>{$('c-status').textContent=message},access:{isPlaying:()=>playing},captureScene:studioSnapshot,applyScene:studioRecall,getAudio:()=>({context:ctx,externalInput:channels.external?.nodes?.input}),trigger:sequencerTrigger});
 harmonicPanel=mountHarmonyPanel($('cs17-harmony-host'),harmonyState,{
  onApply:opts=>{const instruments=applyStudioHarmony(opts);$('c-status').textContent='Harmony aligned · '+instruments.join(' / ')},
  onFromPoly:()=>{const a=extraRacks.poly.state.polyArp;Object.assign(harmonyState,normalizeHarmony({...harmonyState,key:a.key,scale:a.scale,degree:a.degree}))}
 });
+$('cs18-demo').onclick=()=>activateStarterSong();
+if(!conductor.hasSavedSong)activateStarterSong({fresh:true});
+else if(conductor.scenes?.[0]?.data?.starterId==='blue-hour-v1')activateStarterSong({fresh:true});
 document.querySelector('#c-poly-mount #poly-arp-generate')?.addEventListener('click',()=>{
  if(!harmonyState.autoLink)return;
  const a=extraRacks.poly.state.polyArp;
