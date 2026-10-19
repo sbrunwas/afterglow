@@ -1,0 +1,38 @@
+name: ClawStudio v0.17 Harmony and Session QA
+on:
+  push:
+    branches: [clawstudio-session-recovery-v17]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  session-harmony:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify module syntax
+        run: |
+          node --check web/dist/harmony.js
+          node --check web/dist/project-session.js
+          node --check web/dist/sampler.js
+          node --check web/dist/rack-devices.js
+          node --check web/dist/poly-arp.js
+          node --check web/dist/bass01.js
+      - name: Run harmonic, audio and scene-memory tests
+        run: |
+          node --test web/dist/harmony.test.mjs web/dist/project-session.test.mjs web/dist/poly-arp.test.mjs web/dist/sidechain.test.mjs web/dist/texture-patch.test.mjs web/tests/clawstudio-scene-lanes.test.mjs
+      - name: Full app static integration checks
+        run: |
+          node --input-type=module - <<'NODE'
+          import assert from 'node:assert/strict';import fs from 'node:fs';
+          const h=fs.readFileSync('web/dist/clawstudio.html','utf8');
+          const s=fs.readFileSync('web/dist/sampler.js','utf8');
+          const r=fs.readFileSync('web/dist/rack-devices.js','utf8');
+          for(const token of ['cs17-harmony-host','mountHarmonyPanel','applyStudioHarmony','poly-arp-generate','harmonyState','conductorLanes:structuredClone(lanes)','cs17-save-project','cs17-backup','cs17-restore','cs17-load-project','captureProject()','restoreProject(packageData)','loadLocalProject','saveLocalProject','conductor.exportProject()','sampler.exportProject()','sampler.restoreProject(data.sampler)'])assert.ok(h.includes(token),'Missing integrated feature '+token);
+          for(const token of ['import {encodeAudioBuffer,decodeAudioBuffer}','function exportProject()','function restoreProject(data)','pcm:encodeAudioBuffer(s.buffer)'])assert.ok(s.includes(token),'Sampler persistence missing '+token);
+          assert.ok(r.includes('import {newPolyArp'));assert.ok(h.includes('function muteAllChannels()'));
+          console.log('App integration invariants passed');
+          NODE
