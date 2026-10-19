@@ -413,6 +413,97 @@ function sequencerTrigger(target,note,at,duration,velocity){
   else if(target==='TEXTURE')extraRacks.texture.getEngine()?.note(note,at,duration);
   else if(target==='ACID')extraRacks.acid.getEngine()?.note(note,at,duration,false,false,false);
 }
+
+function captureProject(){
+ const drumSamples=sampleSlots.map(item=>item?{name:item.name,rate:item.sampleRate,left:floatTo64(item.left),right:floatTo64(item.right)}:null);
+ return validateProject({
+  format:'clawstudio-project',version:1,savedAt:new Date().toISOString(),
+  drum:{state:clone(drum),samples:drumSamples},
+  rack:{mono:clone(bass01.state),poly:clone(extraRacks.poly.state),texture:clone(extraRacks.texture.state),acid:clone(extraRacks.acid.state)},
+  sampler:sampler.exportProject(),conductor:conductor.exportProject(),
+  desk:{...studioSnapshot(),morph:{A:clone(A),B:clone(B),mode,cross:+$('c-cross').value}},
+  harmony:{...harmonyState}
+ });
+}
+function restoreRackProject(module,saved,type){
+ if(!saved||!Array.isArray(saved.patterns)||saved.patterns.length!==8)throw Error('Invalid '+type+' instrument data');
+ const state=module.state;
+ if(type==='mono'){
+  Object.assign(state,structuredClone(saved));
+  module.getEngine()?.update?.(state.params);
+ }else{
+  const currentParams=state.p;
+  const routes=type==='texture'?state.patchRoutes:null;
+  Object.assign(currentParams,structuredClone(saved.p||{}));
+  Object.assign(state,structuredClone(saved));state.p=currentParams;
+  if(type==='texture'&&routes){routes.splice(0,routes.length,...(Array.isArray(saved.patchRoutes)?saved.patchRoutes:[]));state.patchRoutes=routes}
+  module.getEngine()?.update?.();
+ }
+ module.refreshUI?.();
+}
+async function restoreProject(packageData){
+ const data=validateProject(packageData);
+ if(playing)pause();
+ // Reels are decoded and validated before any rack or drum state is overwritten.
+ sampler.restoreProject(data.sampler);
+ restoreKitData({format:'clawstudio-drum-machine',version:5,state:data.drum.state,samples:data.drum.samples});
+ restoreRackProject(bass01,data.rack.mono,'mono');
+ restoreRackProject(extraRacks.poly,data.rack.poly,'poly');
+ restoreRackProject(extraRacks.texture,data.rack.texture,'texture');
+ restoreRackProject(extraRacks.acid,data.rack.acid,'acid');
+ conductor.restoreProject(data.conductor);
+ if(data.desk)studioRecall(data.desk);
+ if(data.harmony){Object.assign(harmonyState,normalizeHarmony(data.harmony));harmonicPanel?.render()}
+ if(data.desk?.morph){
+  const m=data.desk.morph;A=m.A||{};B=m.B||{};mode=m.mode==='blend'?'blend':'morph';
+  links=Object.keys(A).filter(k=>Object.hasOwn(B,k)&&Math.abs(A[k]-B[k])>.001);
+  $('c-cross').value=Math.max(0,Math.min(100,+m.cross||0));morph();
+ }
+ $('c-bpm').value=drum.tempo;
+ refreshMuteAllButtons();
+ $('c-status').textContent='Full project restored · audio reels loaded · press JAM to play';
+}
+let projectBackupArmed=false,projectSaving=false;
+function projectStatus(message){$('cs17-project-status').textContent=message;$('c-status').textContent=message}
+async function doProjectAction(operation){
+ try{return await operation()}
+ catch(error){projectStatus('Project: '+(error?.message||String(error)));return null}
+}
+$('cs17-save-project').onclick=()=>doProjectAction(async()=>{
+ const project=captureProject();
+ const date=new Date().toISOString().slice(0,10);
+ downloadBlob(projectBlob(project),'ClawStudio-Project-'+date+'.json');
+ projectStatus('Full project downloaded with Drum Machine samples and Sampler reel audio');
+});
+$('cs17-backup').onclick=()=>doProjectAction(async()=>{
+ const project=captureProject();await saveLocalProject(project);projectBackupArmed=true;
+ projectStatus('Project backed up in this browser · periodic recovery now enabled');
+});
+$('cs17-restore').onclick=()=>doProjectAction(async()=>{
+ const project=await loadLocalProject();
+ if(!project){projectStatus('No browser backup found · use OPEN PROJECT');return}
+ await restoreProject(project);projectBackupArmed=true;projectStatus('Recovered local project · all four reels and scene patterns restored');
+});
+$('cs17-load-project').onclick=()=>$('cs17-project-file').click();
+$('cs17-project-file').onchange=e=>{
+ const file=e.target.files?.[0];e.target.value='';
+ if(!file)return;
+ doProjectAction(async()=>{
+  if(file.size>200e6)throw Error('Project is over the 200 MB import limit');
+  const project=validateProject(JSON.parse(await file.text()));
+  await restoreProject(project);
+  projectBackupArmed=true;
+  projectStatus('Imported '+file.name+' · consider BACKUP IN BROWSER');
+ });
+};
+setInterval(async()=>{
+ if(!projectBackupArmed||projectSaving)return;
+ projectSaving=true;
+ try{await saveLocalProject(captureProject());$('cs17-project-status').textContent='Browser recovery refreshed · '+new Date().toLocaleTimeString()}
+ catch(error){projectBackupArmed=false;projectStatus('Auto recovery paused: '+error.message+' · use SAVE PROJECT')}
+ finally{projectSaving=false}
+},90000);
+
 conductor=createConductor({mount:$('cs10-seq-host'),sceneHost:$('cs10-scene-host'),analysisHost:$('cs10-analysis-host'),ioHost:$('cs10-io-host'),status:message=>{$('c-status').textContent=message},access:{isPlaying:()=>playing},captureScene:studioSnapshot,applyScene:studioRecall,getAudio:()=>({context:ctx,externalInput:channels.external?.nodes?.input}),trigger:sequencerTrigger});
 harmonicPanel=mountHarmonyPanel($('cs17-harmony-host'),harmonyState,{
  onApply:opts=>{const instruments=applyStudioHarmony(opts);$('c-status').textContent='Harmony aligned · '+instruments.join(' / ')},
