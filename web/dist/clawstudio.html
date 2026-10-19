@@ -514,8 +514,8 @@ document.querySelector('#c-poly-mount #poly-arp-generate')?.addEventListener('cl
  const a=extraRacks.poly.state.polyArp;
  Object.assign(harmonyState,normalizeHarmony({...harmonyState,key:a.key,scale:a.scale,degree:a.degree}));
  harmonicPanel?.render();
- applyStudioHarmony({generate:true});
- harmonicPanel?.setStatus('Poly generated a melody; linked Mono, Acid, Texture and CLAWSTEP pitched lanes to its tonal center. Drum patterns unchanged.');
+ applyStudioHarmony({generate:false});
+ harmonicPanel?.setStatus('Poly melody updated: matched the key and scale of Mono, Acid, Texture and pitched CLAWSTEP lanes while retaining their contours and rhythms. Drums unchanged.');
 });
 })();
 </script>
