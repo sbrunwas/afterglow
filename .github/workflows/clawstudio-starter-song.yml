@@ -1,0 +1,29 @@
+name: ClawStudio Starter Song QA
+on:
+  push:
+    branches: [clawstudio-cohesive-starter-song-v18]
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  composition:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Validate arrangement and musical density
+        run: node --test web/dist/starter-song.test.mjs
+      - name: Install Playwright
+        working-directory: web
+        run: |
+          npm ci
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Serve ClawStudio
+        run: |
+          python3 -m http.server 8765 --directory web/dist >/tmp/claw-demo-http.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8765/clawstudio.html >/dev/null && exit 0 || sleep 1; done
+          cat /tmp/claw-demo-http.log; exit 1
+      - name: Test starter composition in Chromium
+        working-directory: web
+        run: node tests/clawstudio-starter.e2e.mjs
