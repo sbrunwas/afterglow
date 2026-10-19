@@ -35,6 +35,7 @@ export function attachBuchlaPanel(mount,routes,params){
   }
  }
  function refresh(){
+  all('[data-buc-param]').forEach(el=>{el.value=params[el.dataset.bucParam]??.5});
   const host=$('#buc-route-list');host.replaceChildren();routes.forEach((r,i)=>{const row=document.createElement('div');row.className='buc-route';
    const label=document.createElement('span');label.textContent=(i+1)+'. '+r.source+' → '+r.target;
    const slider=document.createElement('input');slider.type='range';slider.min=-1;slider.max=1;slider.step=.01;slider.value=r.amount;slider.setAttribute('aria-label','Patch cable '+(i+1)+' depth');
