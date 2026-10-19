@@ -1,0 +1,32 @@
+name: ClawStudio Master Performance FX QA
+on:
+  push:
+    branches: [clawstudio-master-performance-fx-v19]
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  master-fx:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: DSP syntax and offline audio-buffer tests
+        run: |
+          node --check web/dist/master-fx-worklet.js
+          node --check web/dist/master-performance.js
+          node --test web/dist/master-performance.test.mjs
+      - name: Install Chromium
+        working-directory: web
+        run: |
+          npm ci
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Host actual integrated ClawStudio
+        run: |
+          python3 -m http.server 8765 --directory web/dist >/tmp/claw-master-fx.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8765/clawstudio.html >/dev/null && exit 0 || sleep 1; done
+          cat /tmp/claw-master-fx.log; exit 1
+      - name: Test live master FX, gestures and persistence
+        working-directory: web
+        run: node tests/clawstudio-master-fx.e2e.mjs
