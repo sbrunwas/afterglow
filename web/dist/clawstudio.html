@@ -385,6 +385,7 @@ function startClock(){
     try{
       clockWorker=new Worker(new URL('./clawstudio-clock.worker.js',document.baseURI),{type:'module'});
       clockWorker.onmessage=()=>tick();
+      clockWorker.onerror=()=>{clockWorker?.terminate();clockWorker=null;if(playing&&!interval)interval=setInterval(tick,24)};
       clockWorker.postMessage({type:'start',interval:24});
       return;
     }catch(error){$('c-status').textContent='Worker clock unavailable: '+error.message}
