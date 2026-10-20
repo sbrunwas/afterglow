@@ -1,0 +1,32 @@
+name: ClawStudio Mono Clarity QA
+on:
+  push:
+    branches: [clawstudio-mono-dsp-clarity-v20]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mono:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Static DSP and clean drive tests
+        run: |
+          node --check web/dist/bass01.js
+          node --test web/dist/mono-dsp.test.mjs web/dist/starter-song.test.mjs
+      - name: Install Chromium
+        working-directory: web
+        run: |
+          npm ci
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Serve ClawStudio
+        run: |
+          python3 -m http.server 8765 --directory web/dist >/tmp/mono-audio-http.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8765/clawstudio.html >/dev/null && exit 0 || sleep 1; done
+          cat /tmp/mono-audio-http.log; exit 1
+      - name: Render and analyze actual MONO audio in Chromium
+        working-directory: web
+        run: node tests/clawstudio-mono-dsp.e2e.mjs
