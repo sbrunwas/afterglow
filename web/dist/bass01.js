@@ -93,8 +93,8 @@ export class Bass01Engine{
     this.post=ctx.createWaveShaper();this.post.oversample='4x';this.duck=ctx.createGain();this.duck.gain.value=1;
     this.oscMix.connect(this.pre);this.pre.connect(this.hp);this.hp.connect(this.inter);this.inter.connect(this.lp);this.lp.connect(this.env);this.env.connect(this.post);this.post.connect(this.duck);this.duck.connect(this.output);
     this.delay=ctx.createDelay(1.5);this.feedback=ctx.createGain();this.delayTone=ctx.createBiquadFilter();this.delayTone.type='lowpass';this.delayTone.frequency.value=3200;
-    this.sendD=ctx.createGain();this.post.connect(this.sendD);this.sendD.connect(this.delay);this.delay.connect(this.delayTone);this.delayTone.connect(this.feedback);this.feedback.connect(this.delay);this.delay.connect(this.output);
-    this.sendR=ctx.createGain();this.post.connect(this.sendR);this.reverb=ctx.createConvolver();this.sendR.connect(this.reverb);this.reverb.connect(this.output);
+    this.sendD=ctx.createGain();this.sendD.gain.value=0;this.post.connect(this.sendD);this.sendD.connect(this.delay);this.delay.connect(this.delayTone);this.delayTone.connect(this.feedback);this.feedback.connect(this.delay);this.delay.connect(this.output);
+    this.sendR=ctx.createGain();this.sendR.gain.value=0;this.post.connect(this.sendR);this.reverb=ctx.createConvolver();this.sendR.connect(this.reverb);this.reverb.connect(this.output);
     // compact, deterministic stereo decay impulse
     const n=Math.round(ctx.sampleRate*1.35),ir=ctx.createBuffer(2,n,ctx.sampleRate);
     for(let c=0;c<2;c++){let a=ir.getChannelData(c),seed=12345+c*789;for(let i=0;i<n;i++){seed=(Math.imul(seed,1664525)+1013904223)|0;a[i]=((seed>>>8)/8388608-1)*Math.pow(1-i/n,2.5)*.21}}this.reverb.buffer=ir;
