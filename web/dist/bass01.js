@@ -2,7 +2,7 @@
 // 101-inspired oscillator/sequencer; aggressive dual-resonant MS-style filter;
 // TRK-01-inspired oscillator modes/modulation (not circuit-identical emulation).
 export const BASE={
-  mode:'CLASSIC',saw:.67,pulse:.43,pwm:.42,sub:.67,subOct:1,noise:.055,
+  mode:'CLASSIC',saw:.67,pulse:.43,pwm:.42,sub:.67,subOct:1,subWave:'TRIANGLE',noise:.055,
   detune:.31,fmRatio:2,fmIndex:.25,wave:.25,fold:.15,
   hp:.065,hpres:.18,lp:.54,lpres:.36,drive:.18,filterEnv:.42,keytrack:.36,
   attack:.015,decay:.22,sustain:.52,release:.20,punch:.35,glide:.10,
@@ -87,10 +87,10 @@ export class Bass01Engine{
   constructor(ctx,destination){this.ctx=ctx;this.destination=destination;this.nodes=[];this.params={...BASE};this.lastNote=null;this.previousSlide=false;this.ready=false;this.output=ctx.createGain();this.output.gain.value=.75;this.output.connect(destination);
     const make=(type='gain')=>type==='gain'?ctx.createGain():ctx.createBiquadFilter();
     this.oscMix=ctx.createGain();this.oscMix.gain.value=.31;
-    this.pre=ctx.createWaveShaper();this.hp=ctx.createBiquadFilter();this.hp.type='highpass';
-    this.inter=ctx.createWaveShaper();this.lp=ctx.createBiquadFilter();this.lp.type='lowpass';
+    this.pre=ctx.createWaveShaper();this.pre.oversample='4x';this.hp=ctx.createBiquadFilter();this.hp.type='highpass';
+    this.inter=ctx.createWaveShaper();this.inter.oversample='4x';this.lp=ctx.createBiquadFilter();this.lp.type='lowpass';
     this.env=ctx.createGain();this.env.gain.value=0;
-    this.post=ctx.createWaveShaper();this.duck=ctx.createGain();this.duck.gain.value=1;
+    this.post=ctx.createWaveShaper();this.post.oversample='4x';this.duck=ctx.createGain();this.duck.gain.value=1;
     this.oscMix.connect(this.pre);this.pre.connect(this.hp);this.hp.connect(this.inter);this.inter.connect(this.lp);this.lp.connect(this.env);this.env.connect(this.post);this.post.connect(this.duck);this.duck.connect(this.output);
     this.delay=ctx.createDelay(1.5);this.feedback=ctx.createGain();this.delayTone=ctx.createBiquadFilter();this.delayTone.type='lowpass';this.delayTone.frequency.value=3200;
     this.sendD=ctx.createGain();this.post.connect(this.sendD);this.sendD.connect(this.delay);this.delay.connect(this.delayTone);this.delayTone.connect(this.feedback);this.feedback.connect(this.delay);this.delay.connect(this.output);
@@ -107,15 +107,30 @@ export class Bass01Engine{
     this.lfos=[0,1].map(i=>{let o=ctx.createOscillator(),g=ctx.createGain();o.type=i?'triangle':'sine';o.frequency.value=2;o.connect(g);o.start();return {o,g}});
     this._modInterval=0;this._lastPulse=-1;this.update(this.params);this.ready=true;
   }
-  _curve(power,fold=false){const a=new Float32Array(1024);for(let i=0;i<a.length;i++){let x=(2*i/1023-1)*(1+power*18);if(fold){x=2/Math.PI*Math.asin(Math.sin(x*1.57));}else x=Math.tanh(x)/Math.max(.001,Math.tanh(1+power*18));a[i]=x;}return a}
+  _curve(power,fold=false){
+    const a=new Float32Array(1024);
+    const depth=norm(power,0,1),wet=norm(depth*1.7,0,1),gain=1+depth*12;
+    const divisor=Math.max(.001,Math.tanh(gain));
+    for(let i=0;i<a.length;i++){
+      const input=2*i/1023-1;
+      const shape=fold
+        ? 2/Math.PI*Math.asin(Math.sin(input*(1+depth*10)*Math.PI/2))
+        : Math.tanh(input*gain)/divisor;
+      // Drive at zero must be electrically clean. Previous implementation
+      // saturated the signal three times even when the control was zero.
+      a[i]=input*(1-wet)+shape*wet;
+    }
+    return a
+  }
   _pulse(duty){const real=new Float32Array(65),imag=new Float32Array(65);for(let n=1;n<65;n++){real[n]=2*Math.sin(n*2*Math.PI*duty)/(Math.PI*n);imag[n]=2*(1-Math.cos(n*2*Math.PI*duty))/(Math.PI*n)}return this.ctx.createPeriodicWave(real,imag,{disableNormalization:false})}
   _wave(morph){const real=new Float32Array(65),imag=new Float32Array(65);for(let n=1;n<65;n++){const tri=n%2===1?Math.pow(-1,(n-1)/2)/(n*n):0;const saw=Math.pow(-1,n)/n;const hollow=n%2?1/n:0;const glass=n<=20?Math.sin(n*1.37)/(Math.sqrt(n)):0;let m=morph*3;imag[n]=m<1?(1-m)*tri+m*saw:m<2?(2-m)*saw+(m-1)*hollow:(3-m)*hollow+(m-2)*glass;}return this.ctx.createPeriodicWave(real,imag,{disableNormalization:false})}
   _changeWave(){const p=this.params;const duty=norm(p.pwm,.05,.95);if(Math.abs(duty-this._lastPulse)>.008){this.pulse.setPeriodicWave(this._pulse(duty));this._lastPulse=duty}
     if(p.mode==='MODERN'&&Math.abs(p.wave-(this._oldWave??-1))>.015){this.carrier.setPeriodicWave(this._wave(p.wave));this._oldWave=p.wave}
   }
-  update(changes){Object.assign(this.params,changes);const p=this.params,ctx=this.ctx,t=ctx.currentTime;this.hp.frequency.setTargetAtTime(exp(p.hp,28,5000),t,.023);this.hp.Q.setTargetAtTime(.5+p.hpres*19,t,.03);this.lp.frequency.setTargetAtTime(exp(p.lp,52,19000),t,.023);this.lp.Q.setTargetAtTime(.6+p.lpres*21,t,.03);this.pre.curve=this._curve(p.drive*.7);this.inter.curve=this._curve(p.drive*.43);this.post.curve=this._curve(p.drive*.27,p.mode==='WEST');
+  update(changes){Object.assign(this.params,changes);const p=this.params,ctx=this.ctx,t=ctx.currentTime;this.hp.frequency.setTargetAtTime(exp(p.hp,28,5000),t,.023);this.hp.Q.setTargetAtTime(.5+16*p.hpres*p.hpres,t,.03);this.lp.frequency.setTargetAtTime(exp(p.lp,52,19000),t,.023);this.lp.Q.setTargetAtTime(.6+17*p.lpres*p.lpres,t,.03);this.pre.curve=this._curve(p.drive*.7);this.inter.curve=this._curve(p.drive*.43);this.post.curve=this._curve(p.mode==='WEST'?p.fold:p.drive*.27,p.mode==='WEST');
     const gainmap={CLASSIC:[p.saw,p.pulse,0,0,p.sub],SUPER:[.6,.08,.5,.5,p.sub],WEST:[.85,.17,0,0,p.sub],FM:[.9,0,0,0,p.sub],MODERN:[.9,0,0,0,p.sub]};const lev=gainmap[p.mode]||gainmap.CLASSIC;for(let i=0;i<this.levels.length;i++)this.levels[i].gain.setTargetAtTime(lev[i],t,.015);this.noiseLevel.gain.setTargetAtTime(p.noise,t,.02);
     this.fmGain.gain.setTargetAtTime(p.mode==='FM'?hz(this.lastNote??36)*p.fmIndex*6:0,t,.025);this.fm.frequency.setTargetAtTime(hz(this.lastNote??36)*p.fmRatio,t,.02);
+    this.sub.type=p.subWave==='SINE'?'sine':p.subWave==='SQUARE'?'square':'triangle';
     this.super1.detune.setTargetAtTime(-p.detune*36,t,.03);this.super2.detune.setTargetAtTime(p.detune*36,t,.03);
     if(p.mode!=='MODERN'&&this._oldMode==='MODERN')this.carrier.type=p.mode==='FM'?'sine':'sawtooth';else if(p.mode==='FM'&&this._oldMode!=='FM')this.carrier.type='sine';else if(p.mode!=='FM'&&p.mode!=='MODERN'&&this._oldMode==='FM')this.carrier.type='sawtooth';this._oldMode=p.mode;
     this._changeWave();this.output.gain.setTargetAtTime(p.volume*.84,t,.03);
@@ -190,7 +205,7 @@ const group=(name,inner)=>`<section class="b01panel"><div class="b01groupname">$
 export function createBass01(mount,{getContext=null,getDestination=null,tempo=()=>126,externalClock=false}={}){
  const state=createInitialBassState();let ctx=null,engine=null,running=false,interval=null,next=0,position=0,playing=false,activeStep=-1;const $=s=>mount.querySelector(s),all=s=>[...mount.querySelectorAll(s)];
  const sections=[
- group('01 / OSCILLATOR MATRIX',`<div class="b01modebar">${['CLASSIC','SUPER','WEST','FM','MODERN'].map(m=>`<button data-mode="${m}" class="b01mode">${m}</button>`).join('')}</div><div class="b01knobgrid">${[['saw','SAW'],['pulse','PULSE'],['pwm','PWM'],['sub','SUB'],['noise','NOISE'],['detune','DETUNE'],['fmIndex','FM INDEX'],['wave','WAVE MORPH'],['fold','FOLD'],['fmRatio','FM RATIO']].map(x=>knobMarkup(...x)).join('')}</div><div class="b01toggle"><label>SUB OCT <select data-option="subOct"><option value="1">−1 OCT</option><option value="2">−2 OCT</option></select></label></div>`),
+ group('01 / OSCILLATOR MATRIX',`<div class="b01modebar">${['CLASSIC','SUPER','WEST','FM','MODERN'].map(m=>`<button data-mode="${m}" class="b01mode">${m}</button>`).join('')}</div><div class="b01knobgrid">${[['saw','SAW'],['pulse','PULSE'],['pwm','PWM'],['sub','SUB'],['noise','NOISE'],['detune','DETUNE'],['fmIndex','FM INDEX'],['wave','WAVE MORPH'],['fold','FOLD'],['fmRatio','FM RATIO']].map(x=>knobMarkup(...x)).join('')}</div><div class="b01toggle"><label>SUB OCT <select data-option="subOct"><option value="1">−1 OCT</option><option value="2">−2 OCT</option></select></label><label>SUB WAVE <select data-option="subWave"><option value="SINE">SINE · CLEAN</option><option value="TRIANGLE">TRIANGLE · WARM</option><option value="SQUARE">SQUARE · RAW</option></select></label></div>`),
  group('02 / DUAL RESONANT FILTER',`<div class="b01filterheader">MS · DUAL VCF <span>HP → DRIVE → LP</span></div><div class="b01knobgrid">${[['hp','HP FREQ'],['hpres','HP PEAK'],['lp','LP FREQ'],['lpres','LP PEAK'],['drive','DRIVE'],['filterEnv','ENV AMT'],['keytrack','KEYTRACK']].map(x=>knobMarkup(...x)).join('')}</div><div class="b01toggle b01options"><label>FILTER SOURCE <select data-option="filterSource"><option value="OWN">FILTER ADSR</option><option value="AMP">AMP ADSR</option></select></label><label>ENV ROUTE <select data-option="filterTarget"><option value="LP">LOW PASS</option><option value="HP">HIGH PASS</option><option value="BOTH">BOTH FILTERS</option></select></label><label>POLARITY <select data-option="filterPolarity"><option value="UP">OPEN ↑</option><option value="DOWN">CLOSE ↓</option></select></label></div>`),
  group('03 / AMP + FILTER ADSR',`<div class="b01envelopes"><div><b>AMP ENVELOPE</b><div class="b01envelopegrid">${[['attack','ATTACK'],['decay','DECAY'],['sustain','SUSTAIN'],['release','RELEASE']].map(x=>knobMarkup(...x)).join('')}</div></div><div><b>FILTER ENVELOPE</b><div class="b01envelopegrid">${[['fAttack','ATTACK'],['fDecay','DECAY'],['fSustain','SUSTAIN'],['fRelease','RELEASE']].map(x=>knobMarkup(...x)).join('')}</div></div><div class="b01envelopeextras">${knobMarkup('glide','PORTAMENTO')}${knobMarkup('punch','SNAP / PUNCH')}${knobMarkup('volume','LEVEL')}</div></div>`),
  group('04 / MODULATION MATRIX',`<div class="b01lfo">${[1,2].map(n=>`<div><strong>LFO ${n}</strong><div class="b01twoknobs">${knobMarkup('lfo'+n+'Rate','RATE')}${knobMarkup('lfo'+n+'Depth','DEPTH')}</div><label>TARGET <select data-option="lfo${n}Target"><option>CUTOFF</option><option>PWM</option><option>PITCH</option><option>FM</option></select></label></div>`).join('')}</div>`),
