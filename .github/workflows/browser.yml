@@ -30,6 +30,12 @@ jobs:
           AFTERGLOW_EMSDK="$RUNNER_TEMP/afterglow-emsdk" bash scripts/build-wasm.sh
       - name: Test engine, worklet, exports, presets and UI interactions
         run: npm test
+      - name: Install headless Chromium for integrated ClawStudio audio QA
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Test live WASM JAM and 24-bit WAV recorder in Chromium
+        run: node scripts/clawstudio-browser-smoke.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: Afterglow-Browser-Static
