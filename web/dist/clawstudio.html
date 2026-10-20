@@ -309,7 +309,7 @@ function current(){let o={};for(let c of Object.values(channels))for(let p of Ob
 function morph(){let x=Number($('c-cross').value)/100;if(mode==='morph'){for(let k of links)set(k,A[k]+(B[k]-A[k])*x);if(ctx){fxNodes.busA.gain.setTargetAtTime(1,ctx.currentTime,.03);fxNodes.busB.gain.setTargetAtTime(1,ctx.currentTime,.03)}}else if(ctx){fxNodes.busA.gain.setTargetAtTime(Math.cos(x*Math.PI/2),ctx.currentTime,.03);fxNodes.busB.gain.setTargetAtTime(Math.sin(x*Math.PI/2),ctx.currentTime,.03)}$('c-morphlabel').textContent=Math.round(100*x)+'% · '+(mode==='morph'?links.length+' PARAMETERS':'AUDIO BLEND')}
 function capture(which){if(which==='A'){A=current();links=[];$('c-cross').value=0;$('c-status').textContent='Scene A captured. Tweak settings and capture B.'}else{B=current();links=Object.keys(A).filter(k=>Math.abs(A[k]-B[k])>.001);$('c-cross').value=100;$('c-status').textContent='Scene B captured · '+links.length+' parameters'}morph()}
 function setup(){if(ctx)return;let AC=window.AudioContext||window.webkitAudioContext;ctx=new AC({sampleRate:48000});noiseBuffer=ctx.createBuffer(1,ctx.sampleRate,ctx.sampleRate);let dat=noiseBuffer.getChannelData(0);for(let i=0;i<dat.length;i++)dat[i]=Math.random()*2-1;let busA=ctx.createGain(),busB=ctx.createGain(),master=ctx.createGain(),drive=ctx.createWaveShaper(),compressor=ctx.createDynamicsCompressor(),meter=ctx.createAnalyser();busA.connect(master);busB.connect(master);masterPerformance.init(ctx,master,drive);drive.connect(compressor);compressor.connect(meter);meter.connect(ctx.destination);master.gain.value=.65;compressor.threshold.value=-9;compressor.ratio.value=3;let delay=ctx.createDelay(2),low=ctx.createBiquadFilter(),feed=ctx.createGain();delay.connect(low);low.type='lowpass';low.frequency.value=3600;low.connect(feed);feed.connect(delay);delay.connect(master);let convolver=ctx.createConvolver(),rv=ctx.createGain();convolver.connect(rv);rv.connect(master);let n=ctx.sampleRate*1.9,ir=ctx.createBuffer(2,n,ctx.sampleRate);for(let ch=0;ch<2;ch++){let a=ir.getChannelData(ch);for(let i=0;i<n;i++)a[i]=(Math.random()*2-1)*Math.pow(1-i/n,3)}convolver.buffer=ir;fxNodes={busA,busB,master,drive,delay,feed,rv,meter};
-for(let c of Object.values(channels)){let input=ctx.createGain(),prev=input,eq=[];for(let [type,f] of [['lowshelf',150],['peaking',500],['peaking',2100],['highshelf',8000]]){let b=ctx.createBiquadFilter();b.type=type;b.frequency.value=f;b.Q.value=.9;prev.connect(b);prev=b;eq.push(b)}let filter=ctx.createBiquadFilter(),gain=ctx.createGain(),an=ctx.createAnalyser(),sendD=ctx.createGain(),sendR=ctx.createGain();filter.type='lowpass';filter.frequency.value=19500;prev.connect(filter);filter.connect(gain);const duck=kickSidechain.connect(ctx,c.id);gain.connect(duck);duck.connect(an);an.connect(c.bus==='A'?busA:busB);duck.connect(sendD);sendD.connect(delay);duck.connect(sendR);sendR.connect(convolver);an.fftSize=256;c.nodes={input,eq,filter,gain,duck,an,sendD,sendR};kickSidechain.setEnabled(c.id,c.sc);applyChannel(c)}sampler.init();bass01.init(ctx,channels.acid.nodes.input);extraRacks.poly.init(ctx,channels.poly.nodes.input);extraRacks.texture.init(ctx,channels.texture.nodes.input);extraRacks.acid.init(ctx,channels.tb303.nodes.input);applyFX();setupRecorder();conductor?.attachAnalyzers(ctx,meter);requestAnimationFrame(updateMeters)}
+for(let c of Object.values(channels)){let input=ctx.createGain(),prev=input,eq=[];for(let [type,f] of [['lowshelf',150],['peaking',500],['peaking',2100],['highshelf',8000]]){let b=ctx.createBiquadFilter();b.type=type;b.frequency.value=f;b.Q.value=.9;prev.connect(b);prev=b;eq.push(b)}let filter=ctx.createBiquadFilter(),gain=ctx.createGain(),an=ctx.createAnalyser(),sendD=ctx.createGain(),sendR=ctx.createGain();filter.type='lowpass';filter.frequency.value=19500;prev.connect(filter);filter.connect(gain);const duck=kickSidechain.connect(ctx,c.id);gain.connect(duck);duck.connect(an);an.connect(c.bus==='A'?busA:busB);duck.connect(sendD);sendD.connect(delay);duck.connect(sendR);sendR.connect(convolver);an.fftSize=256;c.nodes={input,eq,filter,gain,duck,an,sendD,sendR};kickSidechain.setEnabled(c.id,c.sc);applyChannel(c)}sampler.init();bass01.init(ctx,channels.acid.nodes.input);extraRacks.poly.init(ctx,channels.poly.nodes.input);extraRacks.texture.init(ctx,channels.texture.nodes.input);extraRacks.acid.init(ctx,channels.tb303.nodes.input);applyFX();conductor?.attachAnalyzers(ctx,meter);requestAnimationFrame(updateMeters)}
 function applyChannel(c){if(!ctx||!c.nodes)return;let t=ctx.currentTime,n=c.nodes,v=c.v;['low','lm','hm','hi'].forEach((p,i)=>n.eq[i].gain.setTargetAtTime((v[p]-.5)*24,t,.015));n.filter.frequency.setTargetAtTime(v.cut>.995?19500:80*Math.pow(190,v.cut),t,.02);n.filter.Q.setTargetAtTime(.5+v.res*12,t,.02);let solo=Object.values(channels).some(x=>x.solo);n.gain.gain.setTargetAtTime(c.mute||(solo&&!c.solo)?0:v.level,t,.025);n.sendD.gain.setTargetAtTime(v.delay,t,.03);n.sendR.gain.setTargetAtTime(v.reverb,t,.03)}
 function gate(){for(let c of Object.values(channels))applyChannel(c)}
 function applyFX(){if(!ctx)return;let t=ctx.currentTime;fxNodes.delay.delayTime.setTargetAtTime(.09+fx.time*.65,t,.04);fxNodes.feed.gain.setTargetAtTime(fx.feedback*.86,t,.04);fxNodes.rv.gain.setTargetAtTime(fx.space*.7,t,.04);let curve=new Float32Array(1024),k=1+fx.drive*15;for(let i=0;i<curve.length;i++){let x=2*i/1023-1;curve[i]=Math.tanh(x*k)/Math.tanh(k)}fxNodes.drive.curve=curve}
@@ -396,9 +396,86 @@ async function play(){
 function pause(){playing=false;clearInterval(interval);kickSidechain.reset();drumAudio?.pause();extraRacks.acid.getEngine()?.stop();$('c-play').textContent='▶ JAM'}
 function stop(){pause();masterPerformance.stop();step=0;observedKickPattern=null;conductor?.reset();sampler.stop();drumAudio?.stop();all('#c-grid .step').forEach(x=>x.classList.remove('now'))}
 function updateMeters(){if(!ctx)return;for(let c of Object.values(channels)){let data=new Uint8Array(256);c.nodes.an.getByteTimeDomainData(data);let q=0;for(let t of data)q+=((t-128)/128)**2;c.el.querySelector('.bar').style.height=(clamp(Math.sqrt(q/256)*3)*100)+'%'}requestAnimationFrame(updateMeters)}
-function setupRecorder(){let recNode=ctx.createScriptProcessor(2048,2,2),silent=ctx.createGain();silent.gain.value=0;fxNodes.meter.connect(recNode);recNode.connect(silent);silent.connect(ctx.destination);recNode.onaudioprocess=e=>{if(rec&&recChunks.length<3500){let b=e.inputBuffer;recChunks.push([new Float32Array(b.getChannelData(0)),new Float32Array(b.getChannelData(1))])}};recTap=recNode}
-function wav(chunks){let frames=chunks.reduce((a,b)=>a+b[0].length,0),buf=new ArrayBuffer(44+frames*4),view=new DataView(buf),p=0;function str(x){for(let ch of x)view.setUint8(p++,ch.charCodeAt(0))}function u16(x){view.setUint16(p,x,true);p+=2}function u32(x){view.setUint32(p,x,true);p+=4}str('RIFF');u32(36+frames*4);str('WAVEfmt ');u32(16);u16(1);u16(2);u32(ctx.sampleRate);u32(ctx.sampleRate*4);u16(4);u16(16);str('data');u32(frames*4);for(let [l,r] of chunks)for(let i=0;i<l.length;i++){view.setInt16(p,clamp(l[i],-1,1)*32767,true);p+=2;view.setInt16(p,clamp(r[i],-1,1)*32767,true);p+=2}return new Blob([buf],{type:'audio/wav'})}
-function downloadTake(){if(!rec)return;rec=false;$('c-rec').textContent='● REC';$('c-rec').classList.remove('recLive');if(!recChunks.length)return;let uri=URL.createObjectURL(wav(recChunks));let a=document.createElement('a');a.href=uri;a.download='ClawStudio-Live-Jam.wav';a.click();setTimeout(()=>URL.revokeObjectURL(uri),8000);recChunks=[];$('c-status').textContent='WAV exported'}
+// Live stereo capture is performed in an AudioWorklet, never ScriptProcessorNode.
+let recorderReady=null,recSequence=0,recFinish=null,recStopBusy=false,recClockTimer=null;
+function setupRecorder(){
+  if(recorderReady)return recorderReady;
+  recorderReady=(async()=>{
+    if(!ctx.audioWorklet||typeof AudioWorkletNode==='undefined')
+      throw Error('Recording needs AudioWorklet in a modern HTTPS browser');
+    await ctx.audioWorklet.addModule(new URL('./clawstudio-capture.worklet.js',document.baseURI).href);
+    const node=new AudioWorkletNode(ctx,'clawstudio-stereo-capture',
+      {numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[2]});
+    const silent=ctx.createGain();silent.gain.value=0;
+    fxNodes.meter.connect(node);node.connect(silent);silent.connect(ctx.destination);
+    node.port.onmessage=({data})=>{
+      if(data?.id!==recSequence)return;
+      if(data.type==='wavChunk'&&rec)
+        recChunks.push([data.left,data.right]);
+      else if(data.type==='wavDone'){
+        if(data.automatic&&rec&&!recStopBusy){
+          downloadTake(true).catch(error=>{$('c-status').textContent='Recording save error: '+error.message});
+        }else if(recFinish){const resolve=recFinish;recFinish=null;resolve(data)}
+      }else if(data.type==='captureError')
+        $('c-status').textContent='Recorder error: '+data.error;
+    };
+    recTap=node;
+    return node;
+  })().catch(error=>{recorderReady=null;throw error});
+  return recorderReady;
+}
+function wav(chunks){
+  const frames=chunks.reduce((sum,chunk)=>sum+chunk[0].length,0);
+  if(!frames)throw Error('No audio captured');
+  const bytesPerFrame=6;
+  if(frames*bytesPerFrame>0xffffffff-44)throw Error('WAV file exceeds RIFF size limit');
+  const buf=new ArrayBuffer(44+frames*bytesPerFrame),view=new DataView(buf);
+  let p=0;
+  const str=x=>{for(const ch of x)view.setUint8(p++,ch.charCodeAt(0))};
+  const u16=x=>{view.setUint16(p,x,true);p+=2};
+  const u32=x=>{view.setUint32(p,x,true);p+=4};
+  const i24=x=>{
+    const n=Math.max(-8388608,Math.min(8388607,Math.round(Math.max(-1,Math.min(1,x))*8388607)));
+    view.setUint8(p++,n&255);view.setUint8(p++,(n>>8)&255);view.setUint8(p++,(n>>16)&255);
+  };
+  str('RIFF');u32(36+frames*bytesPerFrame);str('WAVEfmt ');
+  u32(16);u16(1);u16(2);u32(ctx.sampleRate);u32(ctx.sampleRate*bytesPerFrame);
+  u16(bytesPerFrame);u16(24);str('data');u32(frames*bytesPerFrame);
+  for(const [left,right] of chunks)for(let i=0;i<left.length;i++){i24(left[i]);i24(right[i])}
+  return new Blob([buf],{type:'audio/wav'});
+}
+function updateRecordClock(){
+  if(!rec)return;
+  const seconds=Math.min(600,Math.floor((Date.now()-recStartedMs)/1000));
+  $('c-rec').textContent='■ SAVE WAV '+Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
+}
+let recStartedMs=0;
+async function downloadTake(automatic=false){
+  if(!rec||recStopBusy)return;
+  recStopBusy=true;
+  clearInterval(recClockTimer);recClockTimer=null;
+  try{
+    if(!automatic){
+      const done=new Promise((resolve,reject)=>{
+        const timeout=setTimeout(()=>{if(recFinish){recFinish=null;reject(Error('Final recording packet timed out'))}},5000);
+        recFinish=data=>{clearTimeout(timeout);resolve(data)};
+      });
+      recTap.port.postMessage({type:'stopWav',id:recSequence});
+      await done;
+    }
+    rec=false;
+    $('c-rec').textContent='● REC';$('c-rec').classList.remove('recLive');
+    const take=wav(recChunks);
+    const uri=URL.createObjectURL(take),a=document.createElement('a');
+    a.href=uri;a.download='ClawStudio-Live-Jam-24bit.wav';a.click();
+    setTimeout(()=>URL.revokeObjectURL(uri),10000);
+    recChunks=[];
+    $('c-status').textContent=automatic?'10-minute WAV automatically exported':'24-bit stereo WAV exported';
+  }finally{
+    recStopBusy=false;
+    if(!rec){$('c-rec').textContent='● REC';$('c-rec').classList.remove('recLive')}
+  }
+}
 for(const b of all('.claw-mute-all'))b.onclick=muteAllChannels;
 $('c-play').onclick=()=>playing?pause():play();$('c-stop').onclick=stop;
 $('c-racktab').onclick=()=>{$('c-rack').classList.add('current');$('c-desk').classList.remove('current');$('c-racktab').classList.add('active');$('c-desktab').classList.remove('active')};
@@ -423,7 +500,18 @@ $('c-paste').onclick=()=>{if(!clipboard)return;patterns[drum.selectedPattern]=cl
 $('c-chainmode').onclick=()=>{drum.chainMode=!drum.chainMode;syncDrums();renderVoice()};
 $('c-chainapply').onclick=()=>{let parts=$('c-chain').value.split(/[\s,]+/).filter(Boolean).map(Number);if(!parts.length||parts.length>64||parts.some(n=>!Number.isInteger(n)||n<1||n>16)){$('c-status').textContent='Enter 1-64 pattern numbers (1-16), separated by commas';return}drum.bank.chain=Array.from({length:64},(_,i)=>i<parts.length?parts[i]-1:0);drum.bank.chainLength=parts.length;syncDrums();$('c-status').textContent='Pattern chain updated'};
 $('c-capa').onclick=()=>capture('A');$('c-capb').onclick=()=>capture('B');$('c-cross').oninput=morph;$('c-mode').onclick=()=>{mode=mode==='morph'?'audio':'morph';$('c-mode').textContent='MODE: '+mode.toUpperCase();morph()};
-$('c-rec').onclick=async()=>{if(rec){downloadTake();return}setup();await ctx.resume();rec=true;recChunks=[];$('c-rec').textContent='■ SAVE WAV';$('c-rec').classList.add('recLive');$('c-status').textContent='Recording stereo output · hit SAVE WAV to download'};
+$('c-rec').onclick=async()=>{
+  if(rec){await downloadTake();return}
+  if(recStopBusy)return;
+  try{
+    setup();await ctx.resume();await setupRecorder();
+    recChunks=[];recSequence++;rec=true;recStartedMs=Date.now();
+    recTap.port.postMessage({type:'startWav',id:recSequence});
+    $('c-rec').classList.add('recLive');updateRecordClock();
+    recClockTimer=setInterval(updateRecordClock,1000);
+    $('c-status').textContent='Recording 24-bit stereo master · auto-save at 10 minutes';
+  }catch(error){rec=false;$('c-status').textContent='Could not start recorder: '+error.message}
+};
 for(let i=0;i<16;i++){let o=document.createElement('option');o.value=i;o.textContent=String(i+1).padStart(2,'0');$('c-pat').append(o)}buildRackDials('voice','c-voiceknobs',rackParams);buildRackDials('step','c-stepknobs',stepParams);renderRack();renderVoice();panel();A=current();B={...A,'acid.cut':.78,'drums.delay':.47,'fx.feedback':.78,'fx.drive':.6,'fx.space':.89,'sample.cut':.3};links=Object.keys(B).filter(k=>Math.abs(A[k]-B[k])>.001);morph();
 function studioSnapshot(){return {drumPattern:drum.selectedPattern,bassPattern:bass01.state.pattern,polyPattern:extraRacks.poly.state.pattern,texturePattern:extraRacks.texture.state.pattern,acidPattern:extraRacks.acid.state.pattern,polyArp:JSON.parse(JSON.stringify(extraRacks.poly.state.polyArp)),texturePatch:JSON.parse(JSON.stringify(extraRacks.texture.state.patchRoutes)),textureBuchla:Object.fromEntries(Object.entries(extraRacks.texture.state.p).filter(([k])=>k.startsWith('buchla'))),channels:Object.fromEntries(Object.entries(channels).map(([id,c])=>[id,{v:{...c.v},mute:c.mute,sc:c.sc}])),masterFX:{...fx},masterPerformance:masterPerformance.exportState(),sidechain:{...kickSidechain.params},harmony:{...harmonyState},monoRoot:bass01.state.root,polyRoot:extraRacks.poly.state.root,textureRoot:extraRacks.texture.state.root,acidRoot:extraRacks.acid.state.root}}
 function studioRecall(snapshot){
