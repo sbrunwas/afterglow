@@ -379,21 +379,52 @@ async function ensureDrumMachine(){
   }).finally(()=>{drumInit=null});
   return drumInit;
 }
+let clockWorker=null,playSerial=0,playPending=false;
+function startClock(){
+  if(typeof Worker==='function'){
+    try{
+      clockWorker=new Worker(new URL('./clawstudio-clock.worker.js',document.baseURI),{type:'module'});
+      clockWorker.onmessage=()=>tick();
+      clockWorker.postMessage({type:'start',interval:24});
+      return;
+    }catch(error){$('c-status').textContent='Worker clock unavailable: '+error.message}
+  }
+  interval=setInterval(tick,24);
+}
+function stopClock(){
+  if(clockWorker){clockWorker.terminate();clockWorker=null}
+  clearInterval(interval);interval=null;
+}
 async function play(){
+  if(playing||playPending)return;
+  const ticket=++playSerial;
+  playPending=true;
   try{
-    setup();
-    await ctx.resume();
+    setup();await ctx.resume();
     const audio=await ensureDrumMachine();
-    if(playing)return;
-    // All sources share the same AudioContext and tempo. In this beta the
-    // placeholder synth lanes are JS-scheduled; a unified clock comes later.
-    await audio.play();
-    playing=true;step=0;next=ctx.currentTime+.025;conductor?.reset();
-    interval=setInterval(tick,24);tick();
+    if(ticket!==playSerial)return;
+    let start=null;
+    // Every JAM rewinds the C++ sequencer and starts drums and synths at the
+    // same absolute AudioContext time, including after PAUSE.
+    for(let retry=0;retry<3;retry++){
+      const proposed=ctx.currentTime+.18;
+      await audio.playAt(proposed);
+      if(ticket!==playSerial){audio.pause();return}
+      if(ctx.currentTime<proposed-.055){start=proposed;break}
+      audio.stop();
+    }
+    if(start===null)throw Error('Could not arm the drum engine in time');
+    playing=true;step=0;next=start;conductor?.reset();
+    startClock();tick();
     $('c-play').textContent='Ⅱ PAUSE';
   }catch(error){$('c-status').textContent='Playback unavailable: '+error.message}
+  finally{if(ticket===playSerial)playPending=false}
 }
-function pause(){playing=false;clearInterval(interval);kickSidechain.reset();drumAudio?.pause();extraRacks.acid.getEngine()?.stop();$('c-play').textContent='▶ JAM'}
+function pause(){
+  playSerial++;playPending=false;playing=false;stopClock();
+  kickSidechain.reset();drumAudio?.pause();extraRacks.acid.getEngine()?.stop();
+  $('c-play').textContent='▶ JAM';
+}
 function stop(){pause();masterPerformance.stop();step=0;observedKickPattern=null;conductor?.reset();sampler.stop();drumAudio?.stop();all('#c-grid .step').forEach(x=>x.classList.remove('now'))}
 function updateMeters(){if(!ctx)return;for(let c of Object.values(channels)){let data=new Uint8Array(256);c.nodes.an.getByteTimeDomainData(data);let q=0;for(let t of data)q+=((t-128)/128)**2;c.el.querySelector('.bar').style.height=(clamp(Math.sqrt(q/256)*3)*100)+'%'}requestAnimationFrame(updateMeters)}
 // Live stereo capture is performed in an AudioWorklet, never ScriptProcessorNode.
@@ -477,7 +508,7 @@ async function downloadTake(automatic=false){
   }
 }
 for(const b of all('.claw-mute-all'))b.onclick=muteAllChannels;
-$('c-play').onclick=()=>playing?pause():play();$('c-stop').onclick=stop;
+$('c-play').onclick=()=>playing||playPending?pause():play();$('c-stop').onclick=stop;
 $('c-racktab').onclick=()=>{$('c-rack').classList.add('current');$('c-desk').classList.remove('current');$('c-racktab').classList.add('active');$('c-desktab').classList.remove('active')};
 $('c-desktab').onclick=()=>{$('c-desk').classList.add('current');$('c-rack').classList.remove('current');$('c-desktab').classList.add('active');$('c-racktab').classList.remove('active')};
 $('c-mixnow').onclick=()=>$('c-desktab').click();$('c-pat').onchange=e=>{drum.selectedPattern=+e.target.value;selectedStep=0;page=0;renderRack();renderVoice();syncDrums()};$('c-bpm').onchange=e=>{drum.tempo=clamp(+e.target.value||126,40,240);bass01.setTempo(drum.tempo);syncDrums()};
@@ -537,7 +568,7 @@ function studioRecall(snapshot){
 }
 function sequencerTrigger(target,note,at,duration,velocity){
   const v=Math.max(.05,Math.min(1,velocity/127));
-  if(target==='DRUM MACHINE'){const notes=[36,38,41,45,48,37,39,42,46,49,51];const idx=notes.indexOf(note);if(idx>=0)drumAudio?.audition(idx,v);return;}
+  if(target==='DRUM MACHINE'){const notes=[36,38,41,45,48,37,39,42,46,49,51];const idx=notes.indexOf(note);if(idx>=0)drumAudio?.triggerAt(idx,v,at);return;}
   if(target==='ALL SYNTHS'){for(const dest of ['MONO','POLY','TEXTURE','ACID'])sequencerTrigger(dest,note,at,duration,velocity);return;}
   if(target==='MONO')bass01.getEngine()?.noteOn(note,at,duration,false,false);
   else if(target==='POLY')extraRacks.poly.getEngine()?.note(note,at,duration);
