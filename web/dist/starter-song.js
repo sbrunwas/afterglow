@@ -72,7 +72,7 @@ export function installStarterPatterns({drum,mono,poly,texture,acid}){
  drum.voices.forEach((v,i)=>{v.solo=false;v.mute=false;v.level=({0:.80,1:.35,5:.30,6:.42,7:.25,8:.22,9:.20}[i]??.4);v.decay=i===7?.24:.46;v.drive=0});
  mono.state.steps=16;poly.state.steps=16;texture.state.steps=16;acid.state.steps=16;
  mono.state.pattern=0;poly.state.pattern=0;texture.state.pattern=0;acid.state.pattern=0;
- Object.assign(mono.state.params,{attack:.008,decay:.18,sustain:.30,release:.16,punch:.58,lp:.49,sub:.62,volume:.61,delay:0,space:0,duck:0});
+ Object.assign(mono.state.params,{mode:'CLASSIC',saw:.72,pulse:.10,sub:.18,subWave:'SINE',subOct:1,noise:0,attack:.006,decay:.19,sustain:.26,release:.13,punch:.42,lp:.55,hp:.055,hpres:.08,lpres:.14,filterEnv:.28,fDecay:.15,drive:.025,volume:.65,delay:0,space:0,duck:0});
  Object.assign(poly.state.p,{wave:'SUPER SAW',detune:.47,mix:.69,cutoff:.58,res:.16,env:.35,attack:.008,decay:.26,sustain:.21,release:.21,chorus:.41,delay:.12,drive:.07,level:.42});
  Object.assign(texture.state.p,{engine:'WAVETABLE',table:'GLASS',wave:.25,second:.32,third:.07,rate:.10,depth:.30,motion:.3,attack:.45,decay:.54,sustain:.70,release:.56,space:.36,feedback:.09,level:.33,pace:'DRONE',buchlaFold:.03,buchlaLpg:.16,buchlaIndex:.12});
  Object.assign(acid.state.p,{wave:'SQUARE',cutoff:.33,res:.50,env:.55,decay:.25,accent:.55,slide:.28,drive:.10,volume:.38});
@@ -81,7 +81,7 @@ export function installStarterPatterns({drum,mono,poly,texture,acid}){
  arp.cells=Array.from({length:16},(_,i)=>({shift:[0,0,1,0,0,0,-1,0][i%8],on:![1,5].includes(i%8),accent:i%8===0}));
  return STARTER_SCENES;
 }
-const level={drums:.76,acid:.44,poly:.40,texture:.32,tb303:.38,sample:.44,external:0};
+const level={drums:.76,acid:.36,poly:.40,texture:.32,tb303:.38,sample:.44,external:0};
 function starterSceneSnapshot(base,scene,index){
  const copy=clone(base);copy.starterId='blue-hour-v1';
  copy.drumPattern=index;copy.bassPattern=index;copy.polyPattern=index;copy.texturePattern=index;copy.acidPattern=index;
@@ -93,7 +93,7 @@ function starterSceneSnapshot(base,scene,index){
   if(level[id]!==undefined)v.v.level=level[id];
   v.sc=(id==='acid'&&!v.mute);v.solo=false;
  }
- copy.masterFX={...copy.masterFX,time:.25,feedback:.20,space:.28,drive:.09};
+ copy.masterFX={...copy.masterFX,time:.25,feedback:.20,space:.28,drive:.035};
  copy.sidechain={...copy.sidechain,amount:.35,attack:.03,hold:.06,release:.27};
  return copy;
 }
