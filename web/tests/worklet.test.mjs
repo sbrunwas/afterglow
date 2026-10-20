@@ -5,12 +5,14 @@ import {createInitialState} from '../dist/state.js';
 const module=await WebAssembly.compile(await readFile(new URL('../dist/afterglow.wasm',import.meta.url)));
 let Processor;
 globalThis.sampleRate=48000;
+// In a real AudioWorklet the global render clock is always supplied by the browser.
+globalThis.currentFrame=0;
 globalThis.AudioWorkletProcessor=class {constructor(){this.port={messages:[],postMessage(data){this.messages.push(data);},onmessage:null};}};
 globalThis.registerProcessor=(name,implementation)=>{assert.equal(name,'afterglow-processor');Processor=implementation;};
 await import('../dist/worklet.js');
 const make=()=>new Processor({processorOptions:{module,state:createInitialState()}});
 const message=(p,data)=>p.port.onmessage({data});
-function block(p,n=128){const out=[new Float32Array(n),new Float32Array(n)];assert.equal(p.process([], [out]),true);for(const a of out)assert.ok(a.every(Number.isFinite));return out;}
+function block(p,n=128){const out=[new Float32Array(n),new Float32Array(n)];assert.equal(p.process([], [out]),true);globalThis.currentFrame+=n;for(const a of out)assert.ok(a.every(Number.isFinite));return out;}
 const energy=a=>a.reduce((n,v)=>n+Math.abs(v),0);
 
 test('real AudioWorklet module initializes, acknowledges messages, renders and reports position',()=>{
@@ -34,4 +36,17 @@ test('worklet handles stereo samples and bad messages without losing the engine'
 
 test('worklet initialization failure stays silent and returns a clear error',()=>{
  const p=new Processor({processorOptions:{module:null}});assert.equal(p.port.messages[0].type,'error');assert.equal(p.port.messages[0].phase,'initialize');assert.equal(energy(block(p)[0]),0);
+});
+
+test('sample-frame scheduled start stays silent until its render boundary',()=>{
+ const p=make();
+ const at=globalThis.currentFrame+384;
+ message(p,{type:'playAt',audioFrame:at,requestId:33});
+ assert.equal(p.port.messages.at(-1).type,'ack');
+ let pre=0;
+ for(let i=0;i<3;i++)pre+=energy(block(p)[0]);
+ assert.equal(pre,0);
+ let after=0;for(let i=0;i<20;i++)after+=energy(block(p)[0]);
+ assert.ok(after>0);
+ message(p,{type:'stop'});
 });
