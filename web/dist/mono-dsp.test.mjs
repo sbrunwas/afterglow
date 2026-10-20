@@ -19,4 +19,6 @@ test('4x oversampling and usable sub waveform selector are present',async()=>{
  assert.equal((src.match(/oversample='4x'/g)||[]).length,3);
  assert.ok(src.includes("this.post.curve=this._curve(p.mode==='WEST'?p.fold"));
  assert.ok(src.includes('SINE · CLEAN')&&src.includes('SQUARE · RAW'));
+ assert.ok(src.includes('this.sendD.gain.value=0;'),'Internal delay must start fully dry');
+ assert.ok(src.includes('this.sendR.gain.value=0;'),'Internal reverb must start fully dry');;
 });
