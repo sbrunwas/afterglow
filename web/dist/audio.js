@@ -78,6 +78,28 @@ export class AfterglowAudio {
     const proposed=this.samples.slice();proposed[voice]=sample;validateSamples(proposed);return sample;
   }
   async play(){await this.init();this.node.port.postMessage({type:'play'});}
+  async playAt(audioTime){
+    await this.init();
+    const audioFrame=Math.round(audioTime*this.context.sampleRate);
+    if(!Number.isSafeInteger(audioFrame)||audioFrame<0)
+      throw new Error('Invalid scheduled audio transport time');
+    const requestId=++this._requestId;
+    return new Promise((resolve,reject)=>{
+      const timeout=setTimeout(()=>{
+        this._requests.delete(requestId);
+        reject(new Error('The drum worklet did not acknowledge the scheduled start'));
+      },3500);
+      this._requests.set(requestId,{resolve,reject,timeout});
+      try{this.node.port.postMessage({type:'playAt',audioFrame,requestId})}
+      catch(error){clearTimeout(timeout);this._requests.delete(requestId);reject(error)}
+    });
+  }
+  triggerAt(voice,velocity,audioTime){
+    if(!this.node)return;
+    const audioFrame=Math.round(audioTime*this.context.sampleRate);
+    if(!Number.isSafeInteger(audioFrame))return;
+    this.node.port.postMessage({type:'triggerAt',voice,velocity,audioFrame});
+  }
   pause(){this.node?.port.postMessage({type:'pause'});}
   stop(){this.node?.port.postMessage({type:'stop'});}
   audition(voice,velocity=1){this.node?.port.postMessage({type:'trigger',voice,velocity});}
