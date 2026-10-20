@@ -60,6 +60,40 @@ try{
   assert.equal(bytes.readUInt16LE(34),24);
   assert.ok(bytes.length>1000);
   await page.locator('#c-stop').click();
+  // The JP-style front panel and physically separated patch expansion must coexist.
+  await page.locator('#c-poly-select').click();
+  const expansion=page.locator('#c-poly-mount .claw-patch');
+  await expansion.waitFor({state:'visible'});
+  assert.ok(await page.locator('#c-poly-mount .cri-poly').isVisible());
+  await expansion.locator('[data-source="S&H"]').click();
+  await expansion.locator('[data-dest="LP FREQ"]').click();
+  assert.equal(await expansion.locator('.claw-patch-line').count(),1);
+  const visual=await expansion.evaluate(el=>({color:getComputedStyle(el).backgroundImage,
+    title:el.querySelector('.claw-patch-head')?.textContent||''}));
+  assert.match(visual.title,/PATCH FIELD/);
+  assert.ok(visual.color.includes('gradient'));
+  // Audio renders with actual Web Audio and oscillator modulation, not mocked nodes.
+  const audio=await page.evaluate(async()=>{
+    const {createRackInstrument}=await import('./rack-devices.js');
+    const host=document.createElement('div');document.body.append(host);
+    const module=createRackInstrument(host,'poly',{externalClock:true});
+    module.state.polyMod.routes=[
+      {source:'S&H',dest:'LP FREQ',depth:.65},
+      {source:'VOICE OSC',dest:'OSC2 PITCH',depth:.32},
+      {source:'VOICE ENV',dest:'LP FREQ',depth:.45}];
+    module.state.polyMod.rates={a:2,b:.4,hold:7};
+    const offline=new OfflineAudioContext(2,48000,48000);
+    const engine=module.init(offline,offline.destination);
+    engine.note(60,.05,.5,1);engine.note(67,.2,.55,.85);
+    const buff=await offline.startRendering();
+    const data=buff.getChannelData(0);
+    let energy=0,valid=true;
+    for(let i=0;i<data.length;i++){energy+=Math.abs(data[i]);if(!Number.isFinite(data[i]))valid=false}
+    module.dispose();host.remove();
+    return {energy,valid};
+  });
+  assert.equal(audio.valid,true);
+  assert.ok(audio.energy>1,'Poly patchbay rendered silence instead of sound');
   assert.deepEqual(errors.filter(e=>!e.includes('404')),[]);
   process.stdout.write('PASS: Chromium genuine WASM JAM, mixer metering, 24-bit master WAV recorder\n');
 }finally{
